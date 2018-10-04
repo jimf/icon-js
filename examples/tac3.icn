@@ -1,0 +1,6 @@
+# A slightly different solution is produced by using generators:
+procedure main()
+    lines := []
+    every push(lines, !&input)
+    every write(!lines)
+end

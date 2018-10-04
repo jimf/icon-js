@@ -1,0 +1,13 @@
+# Here's a simple example of Icon -- a program that reads lines from standard
+# input and prints the lines in reverse order (last line first; first line
+# last):
+procedure main()
+    lines := []                     # make an empty list
+    while line := read() do {       # loop reading lines from standard input
+        push(lines, line)           # push the line on the list
+    }
+
+    while line := pop(lines) do {   # loop while lines can be popped off the list
+        write(line)                 # write the line out
+    }
+end

@@ -1,0 +1,11 @@
+# Taking more advantage of Icon's syntax and its notion of expression failure
+# leads to a more concise solution:
+procedure main()
+    lines := []
+
+    while push(lines, read()) # When read() fails (at EOF) the failure is
+                              # propagated to push(...), which fails in turn.
+                              # The failure of push() causes the 'while' to fail.
+
+    while write(pop(lines))
+end
