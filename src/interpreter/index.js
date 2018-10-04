@@ -53,6 +53,12 @@ function Icon (input, options) {
       case 'Integer':
         return Promise.resolve(Success(new Type.IconInteger(node.value)))
 
+      case 'Real':
+        return Promise.resolve(Success(new Type.IconReal(node.value)))
+
+      case 'String':
+        return Promise.resolve(Success(new Type.IconString(node.value)))
+
       default: throw new Error(`Unimplemented error: ${node.type}`)
     }
   }

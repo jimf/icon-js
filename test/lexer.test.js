@@ -85,6 +85,22 @@ describe('Lexer', () => {
     })
   })
 
+  it('should tokenize strings', () => {
+    const cases = [
+      { lexeme: '"hello world"', expectedValue: 'hello world' },
+      { lexeme: '"hello\nworld"', expectedValue: 'hello\nworld' }
+    ]
+    cases.forEach(({ lexeme, expectedType, expectedValue }) => {
+      expect(tokenize(lexeme)).toEqual([{
+        type: 'String',
+        lexeme,
+        value: expectedValue,
+        line: 1,
+        column: 0
+      }])
+    })
+  })
+
   it('should tokenize reserved words', () => {
     const reserved = [
       'break', 'do', 'global', 'local', 'record', 'then',

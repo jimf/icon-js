@@ -49,9 +49,8 @@ ${errorContext}
   }
 
   function primary () {
-    if (match('Integer')) {
-      const token = previous()
-      return { type: 'Integer', value: token.value }
+    if (match('Integer') || match('Real') || match('String')) {
+      return previous()
     } else if (match('Identifier')) {
       const token = previous()
       return { type: 'Identifier', name: token.lexeme }

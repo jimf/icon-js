@@ -123,8 +123,9 @@ ${errorContext}
     }
   }
 
-  function createToken (type, value = null) {
+  function createToken (type, createValue) {
     const lexeme = input.substring(start, current)
+    const value = createValue ? createValue(lexeme) : null
     return new Token(type, lexeme, value, line, col - lexeme.length)
   }
 
@@ -152,13 +153,9 @@ ${errorContext}
     }
     // TODO: handle other number bases
     if (prevState === NUM_INTEGER) {
-      const token = createToken('Integer')
-      token.value = parseInt(token.lexeme, 10)
-      return token
+      return createToken('Integer', t => parseInt(t, 10))
     } else if (prevState === NUM_WITH_DEC || prevState === NUM_WITH_EXP) {
-      const token = createToken('Real')
-      token.value = parseFloat(token.lexeme)
-      return token
+      return createToken('Real', parseFloat)
     }
     iconScanError()
   }
@@ -178,6 +175,14 @@ ${errorContext}
     col = c
     current = curr
     return createToken('And')
+  }
+
+  function scanString () {
+    // TODO: handle escape sequences
+    while (!isAtEnd() && !match('"')) {
+      read()
+    }
+    return createToken('String', t => t.slice(1, -1))
   }
 
   function nextToken () {
@@ -201,6 +206,7 @@ ${errorContext}
       case ';': return createToken('Semicolon')
       case '_': return scanIdentifier()
       case '&': return scanKeyword()
+      case '"': return scanString()
       case '+': return createToken(match('+') ? 'PlusPlus' : 'Plus')
 
       case '#':

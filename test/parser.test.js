@@ -2,47 +2,29 @@
 const parse = require('../src/parser')
 
 describe('Parser', () => {
-  it('should parse programs', () => {
-    const cases = [
-      {
-        input: `
-procedure main()
-end
-`,
-        expected: {
-          type: 'Program',
-          procedures: {
-            main: { type: 'Procedure', name: 'main', arguments: [], body: [] }
-          }
-        }
-      },
-      {
-        input: `
-procedure main()
-    write(42)
-end
-`,
-        expected: {
-          type: 'Program',
-          procedures: {
-            main: {
-              type: 'Procedure',
-              name: 'main',
-              arguments: [],
-              body: [
-                {
-                  type: 'Call',
-                  callee: { type: 'Identifier', name: 'write' },
-                  arguments: [{ type: 'Integer', value: 42 }]
-                }
-              ]
-            }
-          }
-        }
+  it('should parse empty program', () => {
+    const input = 'procedure main()\nend'
+    expect(parse(input)).toEqual({
+      type: 'Program',
+      procedures: {
+        main: { type: 'Procedure', name: 'main', arguments: [], body: [] }
       }
+    })
+  })
+
+  it('should parse data types', () => {
+    const cases = [
+      { lexeme: '42', expectedType: 'Integer' },
+      { lexeme: '4.2', expectedType: 'Real' },
+      { lexeme: '"hello"', expectedType: 'String' }
     ]
-    cases.forEach(({ input, expected }) => {
-      expect(parse(input)).toEqual(expected)
+    cases.forEach(({ lexeme, expectedType }) => {
+      const input = `
+procedure main()
+  write(${lexeme})
+end
+`
+      expect(parse(input).procedures.main.body[0].arguments[0].type).toBe(expectedType)
     })
   })
 })
