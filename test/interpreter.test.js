@@ -35,6 +35,15 @@ procedure main()
 end
 `,
         expected: '17\n'
+      },
+      {
+        input: `
+procedure main()
+    message := "hello world"
+    write(message)
+end
+`,
+        expected: 'hello world\n'
       }
     ]
     return cases.reduce((acc, { input, expected }) => {

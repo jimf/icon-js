@@ -32,6 +32,7 @@ function createCtor (type) {
 
 const IconCoexpression = createCtor('coexpression')
 const IconCset = createCtor('cset')
+const IconFunction = createCtor('function')
 const IconInteger = createCtor('integer')
 const IconList = createCtor('list')
 const IconProcedure = createCtor('procedure')
@@ -87,6 +88,7 @@ function toString (value) {
 module.exports = {
   IconCoexpression,
   IconCset,
+  IconFunction,
   IconInteger,
   IconList,
   IconNull,

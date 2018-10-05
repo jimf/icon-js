@@ -141,8 +141,8 @@ ${errorContext}
       const op = previous()
       const right = comparison()
       expr = {
-        type: 'BinaryExpression',
-        operator: op.lexeme,
+        type: 'BinaryOp',
+        operator: op,
         left: expr,
         right
       }
