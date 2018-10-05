@@ -6,7 +6,7 @@ Interpreter for the [Icon][] programming langauge.
 
 ## Todo
 
-- [ ] Lexer
+- [x] Lexer
 - [ ] Parser
 - [ ] Interpreter
 - [ ] Command-line interface
