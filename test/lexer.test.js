@@ -33,15 +33,74 @@ describe('Lexer', () => {
     })
   })
 
-  it('should tokenize operators', () => {
-    const cases = [
-      { lexeme: ':=', expectedType: 'OpAsgn' },
-      { lexeme: ':=:', expectedType: 'OpRasgn' },
-      { lexeme: '+', expectedType: 'Plus' },
-      { lexeme: '++', expectedType: 'PlusPlus' },
-      { lexeme: '&', expectedType: 'And' }
-    ]
-    cases.forEach(({ lexeme, expectedType }) => {
+  ;[
+    { lexeme: ':=', expectedType: 'ColonEq' },
+    { lexeme: ':=:', expectedType: 'ColonEqColon' },
+    { lexeme: '+', expectedType: 'Plus' },
+    { lexeme: '++', expectedType: 'PlusPlus' },
+    { lexeme: '-', expectedType: 'Minus' },
+    { lexeme: '--', expectedType: 'MinusMinus' },
+    { lexeme: '&', expectedType: 'Amp' },
+    { lexeme: '|', expectedType: 'Pipe' },
+    { lexeme: '||', expectedType: 'PipePipe' },
+    { lexeme: '|||', expectedType: 'PipePipePipe' },
+    { lexeme: '!', expectedType: 'Bang' },
+    { lexeme: '*', expectedType: 'Star' },
+    { lexeme: '**', expectedType: 'StarStar' },
+    { lexeme: '.', expectedType: 'Dot' },
+    { lexeme: '/', expectedType: 'Slash' },
+    { lexeme: '\\', expectedType: 'Backslash' },
+    { lexeme: '=', expectedType: 'Eq' },
+    { lexeme: '==', expectedType: 'EqEq' },
+    { lexeme: '===', expectedType: 'EqEqEq' },
+    { lexeme: '?', expectedType: 'Question' },
+    { lexeme: '~', expectedType: 'Tilde' },
+    { lexeme: '~=', expectedType: 'TildeEq' },
+    { lexeme: '~==', expectedType: 'TildeEqEq' },
+    { lexeme: '~===', expectedType: 'TildeEqEqEq' },
+    { lexeme: '@', expectedType: 'At' },
+    { lexeme: '^', expectedType: 'Caret' },
+    { lexeme: '%', expectedType: 'Mod' },
+    { lexeme: '<', expectedType: 'Less' },
+    { lexeme: '<=', expectedType: 'LessEq' },
+    { lexeme: '<<', expectedType: 'LessLess' },
+    { lexeme: '<<=', expectedType: 'LessLessEq' },
+    { lexeme: '<-', expectedType: 'LessMinus' },
+    { lexeme: '<->', expectedType: 'LessMinusGreater' },
+    { lexeme: '>', expectedType: 'Greater' },
+    { lexeme: '>=', expectedType: 'GreaterEq' },
+    { lexeme: '>>=', expectedType: 'GreaterGreaterEq' },
+    { lexeme: '>>', expectedType: 'GreaterGreater' },
+    { lexeme: '\\:=', expectedType: 'BackslashColonEq' },
+    { lexeme: '@:=', expectedType: 'AtColonEq' },
+    { lexeme: '!:=', expectedType: 'BangColonEq' },
+    { lexeme: '^:=', expectedType: 'CaretColonEq' },
+    { lexeme: '*:=', expectedType: 'StarColonEq' },
+    { lexeme: '/:=', expectedType: 'SlashColonEq' },
+    { lexeme: '%:=', expectedType: 'ModColonEq' },
+    { lexeme: '**:=', expectedType: 'StarStarColonEq' },
+    { lexeme: '+:=', expectedType: 'PlusColonEq' },
+    { lexeme: '-:=', expectedType: 'MinusColonEq' },
+    { lexeme: '++:=', expectedType: 'PlusPlusColonEq' },
+    { lexeme: '--:=', expectedType: 'MinusMinusColonEq' },
+    { lexeme: '||:=', expectedType: 'PipePipeColonEq' },
+    { lexeme: '|||:=', expectedType: 'PipePipePipeColonEq' },
+    { lexeme: '<:=', expectedType: 'LessColonEq' },
+    { lexeme: '<=:=', expectedType: 'LessEqColonEq' },
+    { lexeme: '=:=', expectedType: 'EqColonEq' },
+    { lexeme: '>=:=', expectedType: 'GreaterEqColonEq' },
+    { lexeme: '>:=', expectedType: 'GreaterColonEq' },
+    { lexeme: '~=:=', expectedType: 'TildeEqColonEq' },
+    { lexeme: '<<:=', expectedType: 'LessLessColonEq' },
+    { lexeme: '<<=:=', expectedType: 'LessLessEqColonEq' },
+    { lexeme: '==:=', expectedType: 'EqEqColonEq' },
+    { lexeme: '>>=:=', expectedType: 'GreaterGreaterEqColonEq' },
+    { lexeme: '>>:=', expectedType: 'GreaterGreaterColonEq' },
+    { lexeme: '~==:=', expectedType: 'TildeEqEqColonEq' },
+    { lexeme: '===:=', expectedType: 'EqEqEqColonEq' },
+    { lexeme: '~===:=', expectedType: 'TildeEqEqEqColonEq' }
+  ].forEach(({ lexeme, expectedType }) => {
+    it(`should tokenize '${lexeme}' operator`, () => {
       expect(tokenize(lexeme)).toEqual([{
         type: expectedType,
         lexeme,
@@ -72,7 +131,8 @@ describe('Lexer', () => {
       { lexeme: '1.5e-3', expectedType: 'Real', expectedValue: 1.5e-3 },
       { lexeme: '1.5E-3', expectedType: 'Real', expectedValue: 1.5e-3 },
       { lexeme: '1.5e+3', expectedType: 'Real', expectedValue: 1.5e3 },
-      { lexeme: '1.5E+3', expectedType: 'Real', expectedValue: 1.5e3 }
+      { lexeme: '1.5E+3', expectedType: 'Real', expectedValue: 1.5e3 },
+      { lexeme: '16r0D0A', expectedType: 'Integer', expectedValue: 0x0D0A }
     ]
     cases.forEach(({ lexeme, expectedType, expectedValue }) => {
       expect(tokenize(lexeme)).toEqual([{
@@ -88,7 +148,9 @@ describe('Lexer', () => {
   it('should tokenize strings', () => {
     const cases = [
       { lexeme: '"hello world"', expectedValue: 'hello world' },
-      { lexeme: '"hello\nworld"', expectedValue: 'hello\nworld' }
+      { lexeme: '"hello\nworld"', expectedValue: 'hello\nworld' },
+      { lexeme: '"\\n\\012\\x0a\\^j"', expectedValue: '\n\n\n\n' },
+      { lexeme: '"A\\x41\\101 Exterminators"', expectedValue: 'AAA Exterminators' }
     ]
     cases.forEach(({ lexeme, expectedType, expectedValue }) => {
       expect(tokenize(lexeme)).toEqual([{
@@ -152,7 +214,7 @@ describe('Lexer', () => {
     keywords.forEach((word) => {
       expect(tokenize(`${word}x`)).toEqual([
         {
-          type: 'And',
+          type: 'Amp',
           lexeme: '&',
           value: null,
           line: 1,

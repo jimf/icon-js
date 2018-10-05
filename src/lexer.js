@@ -32,6 +32,8 @@ function Token (type, lexeme, value, line, column) {
 }
 
 const isDigit = c => c >= '0' && c <= '9'
+const isOctal = c => c >= '0' && c <= '7'
+const isHex = c => isDigit(c) || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')
 const isUpper = c => c >= 'A' && c <= 'Z'
 const isLower = c => c >= 'a' && c <= 'z'
 const isAlpha = c => isUpper(c) || isLower(c)
@@ -42,7 +44,9 @@ const NUM_WITH_DEC = 2
 const NUM_BEGIN_WITH_EXP = 4
 const NUM_BEGIN_WITH_SIGNED_EXP = 8
 const NUM_WITH_EXP = 16
-const NUM_DONE = 32
+const NUM_BEGIN_RADIX = 32
+const NUM_WITH_RADIX = 64
+const NUM_DONE = 128
 
 const parseNumber = (state, c) => {
   switch (state) {
@@ -51,6 +55,7 @@ const parseNumber = (state, c) => {
         case isDigit(c): return NUM_INTEGER
         case c === '.': return NUM_WITH_DEC
         case c === 'e' || c === 'E': return NUM_BEGIN_WITH_EXP
+        case c === 'r': return NUM_BEGIN_RADIX
         default: return NUM_DONE
       }
 
@@ -72,7 +77,74 @@ const parseNumber = (state, c) => {
     case NUM_WITH_EXP:
       return isDigit(c) ? NUM_WITH_EXP : NUM_DONE
 
+    case NUM_BEGIN_RADIX:
+    case NUM_WITH_RADIX:
+      return isHex(c) ? NUM_WITH_RADIX : NUM_DONE
+
     default: return NUM_DONE
+  }
+}
+
+const STR_BEGIN = 1
+const STR_BEGIN_ESC = 2
+const STR_BEGIN_OCT_0 = 4
+const STR_BEGIN_OCT_1 = 8
+const STR_BEGIN_HEX_0 = 16
+const STR_BEGIN_HEX_1 = 32
+const STR_BEGIN_CTRL = 64
+const STR_STRING = 128
+
+const parseString = (state, c, str, tmp) => {
+  switch (state) {
+    case STR_BEGIN:
+      if (c === '"') return [STR_STRING, str]
+      if (c === '\\') return [STR_BEGIN_ESC, str]
+      return [STR_BEGIN, str + c]
+
+    case STR_BEGIN_ESC:
+      if (c === 'b') return [STR_BEGIN, str + '\b']
+      if (c === 'd') return [STR_BEGIN, str + String.fromCharCode(127)]
+      if (c === 'e') return [STR_BEGIN, str + String.fromCharCode(27)]
+      if (c === 'f') return [STR_BEGIN, str + '\f']
+      if (c === 'l') return [STR_BEGIN, str + '\n']
+      if (c === 'n') return [STR_BEGIN, str + '\n']
+      if (c === 'r') return [STR_BEGIN, str + '\r']
+      if (c === 't') return [STR_BEGIN, str + '\t']
+      if (c === 'v') return [STR_BEGIN, str + '\v']
+      if (c === "'") return [STR_BEGIN, str + "'"]
+      if (c === '"') return [STR_BEGIN, str + '"']
+      if (c === '\\') return [STR_BEGIN, str + '\\']
+      if (c === 'x') return [STR_BEGIN_HEX_0, str]
+      if (c === '^') return [STR_BEGIN_CTRL, str]
+      if (isOctal(c)) return [STR_BEGIN_OCT_0, str, c]
+      return [STR_BEGIN, str + c]
+
+    case STR_BEGIN_OCT_0:
+      if (isOctal(c)) return [STR_BEGIN_OCT_1, str, tmp + c]
+      return [STR_BEGIN, str + c]
+
+    case STR_BEGIN_OCT_1:
+      if (isOctal(c)) return [STR_BEGIN, str + String.fromCharCode(parseInt(tmp + c, 8))]
+      return [STR_BEGIN, str + String.fromCharCode(parseInt(tmp, 8)) + c]
+
+    case STR_BEGIN_HEX_0:
+      if (isHex(c)) return [STR_BEGIN_HEX_1, str, c]
+      return [STR_BEGIN, str + c]
+
+    case STR_BEGIN_HEX_1:
+      if (isHex(c)) return [STR_BEGIN, str + String.fromCharCode(parseInt(tmp + c, 16))]
+      return [STR_BEGIN, str + String.fromCharCode(parseInt(tmp, 16)) + c]
+
+    case STR_BEGIN_CTRL:
+      if (isUpper(c)) return [STR_BEGIN, str + String.fromCharCode(c.charCodeAt(0) - 64)]
+      if (isLower(c)) return [STR_BEGIN, str + String.fromCharCode(c.charCodeAt(0) - 96)]
+      if (c === '@') return [STR_BEGIN, str + '\0']
+      if (c === '[') return [STR_BEGIN, str + String.fromCharCode(27)]
+      if (c === '\\') return [STR_BEGIN, str + String.fromCharCode(28)]
+      if (c === ']') return [STR_BEGIN, str + String.fromCharCode(29)]
+      if (c === '^') return [STR_BEGIN, str + String.fromCharCode(30)]
+      if (c === '_') return [STR_BEGIN, str + String.fromCharCode(31)]
+      return [STR_BEGIN, str + c]
   }
 }
 
@@ -129,6 +201,15 @@ ${errorContext}
     return new Token(type, lexeme, value, line, col - lexeme.length)
   }
 
+  function createInfixOpToken (type) {
+    if (peek === ':' && input.charAt(current + 1) === '=') {
+      read()
+      read()
+      return createToken(`${type}ColonEq`)
+    }
+    return createToken(type)
+  }
+
   function scanIdentifier () {
     while (isAlphaNumeric(peek) || peek === '_') {
       read()
@@ -156,6 +237,13 @@ ${errorContext}
       return createToken('Integer', t => parseInt(t, 10))
     } else if (prevState === NUM_WITH_DEC || prevState === NUM_WITH_EXP) {
       return createToken('Real', parseFloat)
+    } else if (prevState === NUM_WITH_RADIX) {
+      return createToken('Integer', t => {
+        const [radix, x] = t.split('r')
+        const value = parseInt(x, parseInt(radix))
+        if (isNaN(value)) { iconScanError() }
+        return value
+      })
     }
     iconScanError()
   }
@@ -174,15 +262,23 @@ ${errorContext}
     start = s
     col = c
     current = curr
-    return createToken('And')
+    return createToken('Amp')
   }
 
   function scanString () {
-    // TODO: handle escape sequences
-    while (!isAtEnd() && !match('"')) {
-      read()
+    let state = STR_BEGIN
+    let value = ''
+    let tmp = null
+    while (!isAtEnd() && state !== STR_STRING) {
+      const next = parseString(state, read(), value, tmp)
+      state = next[0]
+      value = next[1]
+      tmp = next[2]
     }
-    return createToken('String', t => t.slice(1, -1))
+    if (state === STR_STRING) {
+      return createToken('String', () => value)
+    }
+    iconScanError()
   }
 
   function nextToken () {
@@ -204,10 +300,42 @@ ${errorContext}
       case ']': return createToken('RBracket')
       case ',': return createToken('Comma')
       case ';': return createToken('Semicolon')
+      case '?': return createToken('Question')
+      case '!': return createInfixOpToken('Bang')
+      case '/': return createInfixOpToken('Slash')
+      case '\\': return createInfixOpToken('Backslash')
+      case '@': return createInfixOpToken('At')
+      case '^': return createInfixOpToken('Caret')
+      case '%': return createInfixOpToken('Mod')
+      case '+': return createInfixOpToken(match('+') ? 'PlusPlus' : 'Plus')
+      case '-': return createInfixOpToken(match('-') ? 'MinusMinus' : 'Minus')
+      case '*': return createInfixOpToken(match('*') ? 'StarStar' : 'Star')
+      case '.': return isDigit(peek) ? scanNumber(ch) : createToken('Dot')
       case '_': return scanIdentifier()
       case '&': return scanKeyword()
       case '"': return scanString()
-      case '+': return createToken(match('+') ? 'PlusPlus' : 'Plus')
+
+      case '|':
+        if (!match('|')) { return createInfixOpToken('Pipe') }
+        return createInfixOpToken(match('|') ? 'PipePipePipe' : 'PipePipe')
+
+      case '=':
+        if (!match('=')) { return createInfixOpToken('Eq') }
+        return createInfixOpToken(match('=') ? 'EqEqEq' : 'EqEq')
+
+      case '~':
+        if (!match('=')) { return createInfixOpToken('Tilde') }
+        if (!match('=')) { return createInfixOpToken('TildeEq') }
+        return createInfixOpToken(match('=') ? 'TildeEqEqEq' : 'TildeEqEq')
+
+      case '<':
+        if (match('<')) { return createInfixOpToken(match('=') ? 'LessLessEq' : 'LessLess') }
+        if (match('-')) { return createInfixOpToken(match('>') ? 'LessMinusGreater' : 'LessMinus') }
+        return createInfixOpToken(match('=') ? 'LessEq' : 'Less')
+
+      case '>':
+        if (match('>')) { return createInfixOpToken(match('=') ? 'GreaterGreaterEq' : 'GreaterGreater') }
+        return createInfixOpToken(match('=') ? 'GreaterEq' : 'Greater')
 
       case '#':
         skipToEol()
@@ -215,12 +343,12 @@ ${errorContext}
 
       case ':':
         if (!match('=')) { return createToken('Colon') }
-        return createToken(match(':') ? 'OpRasgn' : 'OpAsgn')
+        return createToken(match(':') ? 'ColonEqColon' : 'ColonEq')
 
       default:
         if (isAlpha(ch)) {
           return scanIdentifier()
-        } else if (isDigit(ch) || ch === '.') {
+        } else if (isDigit(ch)) {
           return scanNumber(ch)
         }
         iconScanError()

@@ -137,7 +137,7 @@ ${errorContext}
 
   function assignment () {
     let expr = comparison()
-    if (match('OpAsgn')) {
+    if (match('ColonEq')) {
       const op = previous()
       const right = comparison()
       expr = {

@@ -21,7 +21,7 @@ Success.prototype.cata = function cata (pattern) {
 }
 
 function Failure (reason) {
-  if (!(this instanceof Failure)) { return new Failure() }
+  if (!(this instanceof Failure)) { return new Failure(reason) }
   this.isFailure = true
   this.reason = reason
 }
@@ -39,7 +39,7 @@ Failure.prototype.map = function map (_) {
 }
 
 Failure.prototype.cata = function cata (pattern) {
-  return pattern.Failure()
+  return this
 }
 
 module.exports = { Success, Failure }
