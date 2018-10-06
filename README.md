@@ -14,6 +14,10 @@ Interpreter for the [Icon][] programming langauge.
 
 ## Usage
 
+Install necessary dependencies (requires at least Node.js 8+):
+
+    npm install
+
 Run the interpreter with an Icon source file:
 
     ./bin/icon.js example-file.icn

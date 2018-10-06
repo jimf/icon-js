@@ -39,7 +39,7 @@ const evalCall = ({ env, evaluate }) => ({
       }
       const func = env.scope.lookup(node.callee.name)
       if (func.isFunction) {
-        return func.value(...valsResult.value.map(v => v.value))
+        return func.value(...valsResult.value)
       }
       throw new Error(`Unimplemented procedure call to ${node.callee.name}`)
     })
@@ -62,6 +62,7 @@ const evalBinaryOp = ({ env, evaluate }) => ({
             return Success(a => b => new Type.IconInteger(a.value + b.value))
               .ap(lres.chain(Type.toInteger))
               .ap(rres.chain(Type.toInteger))
+
           default: throw new Error(`Unimplemented binary op: ${node.operator.type}`)
         }
       })
@@ -69,8 +70,11 @@ const evalBinaryOp = ({ env, evaluate }) => ({
 })
 
 const evalPrimaryTypes = ({ env }) => ({
+  Cset: node => Promise.resolve(Success(new Type.IconCset(node.value))),
   Identifier: node => Promise.resolve(Success(env.scope.lookup(node.name))),
   Integer: node => Promise.resolve(Success(new Type.IconInteger(node.value))),
+  Keyword: node => Promise.resolve(Success(env.scope.lookup(node.name))),
+  List: node => Promise.resolve(Success(new Type.IconList(node.value))),
   Real: node => Promise.resolve(Success(new Type.IconReal(node.value))),
   String: node => Promise.resolve(Success(new Type.IconString(node.value)))
 })

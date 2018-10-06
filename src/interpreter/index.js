@@ -1,4 +1,5 @@
 const defineFunctions = require('./functions')
+const defineKeywords = require('./keywords')
 const Eval = require('./eval')
 const parse = require('../parser')
 const Scope = require('./scope')
@@ -9,15 +10,19 @@ function Icon (input, options) {
   const env = Object.assign({}, options, { scope: rootScope })
   const ast = parse(input)
   const functions = defineFunctions(env)
+  const keywords = defineKeywords()
   const evaluate = Eval({ env })
 
   Object.keys(functions).forEach((funcName) => {
     rootScope.define(funcName, new IconFunction(functions[funcName]))
   })
+  Object.keys(keywords).forEach((kw) => {
+    rootScope.define(kw, keywords[kw])
+  })
 
   function run () {
     return evaluate(ast).then((result) => {
-      if (result.isFailure) {
+      if (result && result.isFailure) {
         throw new Error(`Runtime Error:\n${result.reason}`)
       }
     })

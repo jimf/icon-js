@@ -49,11 +49,14 @@ ${errorContext}
   }
 
   function primary () {
-    if (match('Integer') || match('Real') || match('String')) {
+    if (match('Cset') || match('Integer') || match('Real') || match('String')) {
       return previous()
     } else if (match('Identifier')) {
       const token = previous()
       return { type: 'Identifier', name: token.lexeme }
+    } else if (match('Keyword')) {
+      const token = previous()
+      return { type: 'Keyword', name: token.lexeme }
     } else if (match('LParen')) {
       const expr = expression()
       expect(match('RParen'), '")"')
@@ -113,12 +116,33 @@ ${errorContext}
   }
 
   function multiplication () {
-    return unary()
+    let expr = unary()
+    if (
+      match('Star') ||
+      match('Slash') ||
+      match('Percent') ||
+      match('StarStar')
+    ) {
+      const op = previous()
+      const right = unary()
+      expr = {
+        type: 'BinaryOp',
+        operator: op,
+        left: expr,
+        right
+      }
+    }
+    return expr
   }
 
   function addition () {
     let expr = multiplication()
-    if (match('Plus')) {
+    if (
+      match('Plus') ||
+      match('Minus') ||
+      match('PlusPlus') ||
+      match('MinusMinus')
+    ) {
       const op = previous()
       const right = multiplication()
       expr = {
@@ -132,12 +156,72 @@ ${errorContext}
   }
 
   function comparison () {
-    return addition()
+    let expr = addition()
+    if (
+      match('Less') ||
+      match('LessEq') ||
+      match('Eq') ||
+      match('GreaterEq') ||
+      match('Greater') ||
+      match('TildeEq') ||
+      match('LessLess') ||
+      match('LessLessEq') ||
+      match('EqEq') ||
+      match('GreaterGreaterEq') ||
+      match('GreaterGreater') ||
+      match('TildeEqEq') ||
+      match('EqEqEq') ||
+      match('TildeEqEqEq')
+    ) {
+      const op = previous()
+      const right = addition()
+      expr = {
+        type: 'BinaryOp',
+        operator: op,
+        left: expr,
+        right
+      }
+    }
+    return expr
   }
 
   function assignment () {
     let expr = comparison()
-    if (match('ColonEq')) {
+    if (
+      match('ColonEq') ||
+      match('LessMinus') ||
+      match('ColonEqColon') ||
+      match('LessMinusGreater') ||
+      match('ColonEq') ||
+      match('BackslashColonEq') ||
+      match('AtColonEq') ||
+      match('BangColonEq') ||
+      match('CaretColonEq') ||
+      match('StarColonEq') ||
+      match('SlashColonEq') ||
+      match('ModColonEq') ||
+      match('StarStarColonEq') ||
+      match('PlusColonEq') ||
+      match('MinusColonEq') ||
+      match('PlusPlusColonEq') ||
+      match('MinusMinusColonEq') ||
+      match('PipePipeColonEq') ||
+      match('PipePipePipeColonEq') ||
+      match('LessColonEq') ||
+      match('LessEqColonEq') ||
+      match('EqColonEq') ||
+      match('GreaterEqColonEq') ||
+      match('GreaterColonEq') ||
+      match('TildeEqColonEq') ||
+      match('LessLessColonEq') ||
+      match('LessLessEqColonEq') ||
+      match('EqEqColonEq') ||
+      match('GreaterGreaterEqColonEq') ||
+      match('GreaterGreaterColonEq') ||
+      match('TildeEqEqColonEq') ||
+      match('EqEqEqColonEq') ||
+      match('TildeEqEqEqColonEq')
+    ) {
       const op = previous()
       const right = comparison()
       expr = {

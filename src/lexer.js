@@ -94,10 +94,10 @@ const STR_BEGIN_HEX_1 = 32
 const STR_BEGIN_CTRL = 64
 const STR_STRING = 128
 
-const parseString = (state, c, str, tmp) => {
+const parseString = (delim, state, c, str, tmp) => {
   switch (state) {
     case STR_BEGIN:
-      if (c === '"') return [STR_STRING, str]
+      if (c === delim) return [STR_STRING, str]
       if (c === '\\') return [STR_BEGIN_ESC, str]
       return [STR_BEGIN, str + c]
 
@@ -265,18 +265,18 @@ ${errorContext}
     return createToken('Amp')
   }
 
-  function scanString () {
+  function scanString (delim) {
     let state = STR_BEGIN
     let value = ''
     let tmp = null
     while (!isAtEnd() && state !== STR_STRING) {
-      const next = parseString(state, read(), value, tmp)
+      const next = parseString(delim, state, read(), value, tmp)
       state = next[0]
       value = next[1]
       tmp = next[2]
     }
     if (state === STR_STRING) {
-      return createToken('String', () => value)
+      return createToken(delim === '"' ? 'String' : 'Cset', () => value)
     }
     iconScanError()
   }
@@ -313,7 +313,8 @@ ${errorContext}
       case '.': return isDigit(peek) ? scanNumber(ch) : createToken('Dot')
       case '_': return scanIdentifier()
       case '&': return scanKeyword()
-      case '"': return scanString()
+      case '"': return scanString('"')
+      case "'": return scanString("'")
 
       case '|':
         if (!match('|')) { return createInfixOpToken('Pipe') }

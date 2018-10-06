@@ -20,9 +20,12 @@ IconBase.prototype.toString = function toString () {
   return String(this.value)
 }
 
-function createCtor (type) {
+function createCtor (type, initialize) {
   const Ctor = function (value) {
     IconBase.call(this, type, value)
+    if (initialize) {
+      initialize(this, value)
+    }
   }
   Ctor.prototype = Object.create(IconBase.prototype)
   Ctor.prototype.constructor = Ctor
@@ -31,7 +34,6 @@ function createCtor (type) {
 }
 
 const IconCoexpression = createCtor('coexpression')
-const IconCset = createCtor('cset')
 const IconFunction = createCtor('function')
 const IconInteger = createCtor('integer')
 const IconList = createCtor('list')
@@ -39,6 +41,25 @@ const IconProcedure = createCtor('procedure')
 const IconReal = createCtor('real')
 const IconString = createCtor('string')
 const IconTable = createCtor('table')
+
+const IconCset = createCtor('cset', (self, value) => {
+  const set = new Set([])
+  value.split('').forEach((c) => {
+    set.add(c)
+  })
+  const ordered = [...set.values()]
+  ordered.sort()
+  self.value = set
+  self.length = ordered.length
+  self._string = ordered.join('')
+  self._pattern = new RegExp(`[${self._string}]`)
+})
+IconCset.prototype.toString = function toString () {
+  return this._string
+}
+IconCset.prototype.isEqual = function isEqual (other) {
+  return other.isCset && this._string === other._string
+}
 
 const IconNull = createCtor('null')
 IconNull.prototype.toString = function toString () {
@@ -73,15 +94,40 @@ function toReal (value) {
   }
 }
 
+function toNumber (value) {
+  switch (value.type) {
+    case 'number':
+    case 'real':
+      return Success(value)
+
+    case 'string': {
+      const val = parseFloat(value.value)
+      if (isNaN(val)) { return Failure(`numeric expected\noffending value: ${value.value}`) }
+      return Success(val % 1 === 0 ? new IconInteger(val) : new IconReal(val))
+    }
+
+    default:
+      return Failure(`numeric expected\noffending value: ${value.value}`)
+  }
+}
+
 function toString (value) {
   switch (value.type) {
     case 'string': return Success(value)
 
     case 'integer':
     case 'real':
-      return Success(new IconString(value.value.toString()))
+    case 'cset':
+      return Success(new IconString(value.toString()))
 
-    default: return Failure(`numeric expected\noffending value: ${value.value}`)
+    default: return Failure()
+  }
+}
+
+function toCset (value) {
+  switch (value.type) {
+    case 'string': return Success(new IconCset(value.value))
+    default: return Failure()
   }
 }
 
@@ -96,7 +142,9 @@ module.exports = {
   IconReal,
   IconString,
   IconTable,
+  toCset,
   toInteger,
+  toNumber,
   toReal,
   toString
 }
