@@ -39,7 +39,7 @@ Failure.prototype.map = function map (_) {
 }
 
 Failure.prototype.cata = function cata (pattern) {
-  return this
+  return pattern.Failure()
 }
 
 module.exports = { Success, Failure }

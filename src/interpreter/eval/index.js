@@ -59,9 +59,11 @@ const evalBinaryOp = ({ env, evaluate }) => ({
             return rres
 
           case 'Plus':
-            return Success(a => b => new Type.IconInteger(a.value + b.value))
-              .ap(lres.chain(Type.toInteger))
-              .ap(rres.chain(Type.toInteger))
+            return Type.toNumbers([lres.value, rres.value])
+              .map(([left, right]) => left.map(lval => lval + right.value))
+            // return Success(a => b => new Type.IconInteger(a.value + b.value))
+            //   .ap(lres.chain(Type.toInteger))
+            //   .ap(rres.chain(Type.toInteger))
 
           default: throw new Error(`Unimplemented binary op: ${node.operator.type}`)
         }

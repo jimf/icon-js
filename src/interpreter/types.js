@@ -66,6 +66,11 @@ IconNull.prototype.toString = function toString () {
   return ''
 }
 
+IconReal.prototype.toString = function toString () {
+  const res = this.value.toString()
+  return res.includes('.') ? res : res + '.0'
+}
+
 function toInteger (value) {
   switch (value.type) {
     case 'integer': return Success(value)
@@ -83,7 +88,7 @@ function toInteger (value) {
 function toReal (value) {
   switch (value.type) {
     case 'real': return Success(value)
-    case 'integer': return Success(new IconReal(value))
+    case 'integer': return Success(new IconReal(value.value))
     case 'string': {
       const parsed = parseFloat(value.value)
       return isNaN(parsed)
@@ -96,7 +101,7 @@ function toReal (value) {
 
 function toNumber (value) {
   switch (value.type) {
-    case 'number':
+    case 'integer':
     case 'real':
       return Success(value)
 
@@ -109,6 +114,31 @@ function toNumber (value) {
     default:
       return Failure(`numeric expected\noffending value: ${value.value}`)
   }
+}
+
+function toNumbers (values) {
+  const { result, allSameType } = values.reduce((acc, val) => {
+    return acc.result.cata({
+      Failure: () => acc,
+      Success: (nums) => {
+        return toNumber(val).cata({
+          Failure: () => acc,
+          Success: (num) => {
+            acc.result = Success([...nums, num])
+            if (acc.prevType !== null && acc.prevType !== num.type) {
+              acc.allSameType = false
+            }
+            acc.prevType = num.type
+            return acc
+          }
+        })
+      }
+    })
+  }, { result: Success([]), prevType: null, allSameType: true })
+  if (result.isFailure) { return result }
+  return allSameType
+    ? result
+    : result.map(nums => nums.map(num => toReal(num).value))
 }
 
 function toString (value) {
@@ -145,6 +175,7 @@ module.exports = {
   toCset,
   toInteger,
   toNumber,
+  toNumbers,
   toReal,
   toString
 }
