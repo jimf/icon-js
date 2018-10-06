@@ -1,7 +1,33 @@
-/* global describe, it, expect */
+/* global describe, it, test, expect */
 const Icon = require('../src/interpreter')
 
 describe('Interpreter', () => {
+  const testProgram = src => {
+    let stdout = ''
+    const opts = {
+      readStdin: () => {},
+      writeStdout: s => { stdout += s },
+      writeStderr: () => {}
+    }
+    return Icon(src, opts).run().then(() => ({ stdout }))
+  }
+
+  const testExpr = expr => {
+    const src = `
+procedure main()
+  writes(${expr})
+end`
+    return testProgram(src)
+  }
+
+  const testExprs = cases =>
+    cases.reduce(
+      (acc, { input, expected }) => acc.then(() => testExpr(input).then(({ stdout }) => {
+        expect(stdout).toBe(expected)
+      })),
+      Promise.resolve()
+    )
+
   it('should interpret programs', () => {
     const cases = [
       {
@@ -59,5 +85,128 @@ end
         })
       })
     }, Promise.resolve())
+  })
+
+  describe('functions', () => {
+    test('type', () => {
+      return testExprs([
+        { input: 'type(1)', expected: 'integer' },
+        { input: 'type(1.0)', expected: 'real' },
+        { input: 'type("hi")', expected: 'string' },
+        { input: "type('abc')", expected: 'cset' },
+        { input: 'type(x)', expected: 'null' },
+        { input: 'type(type)', expected: 'procedure' }
+      ])
+    })
+  })
+
+  describe('operators', () => {
+    it('should interpret addition', () => {
+      return testExprs([
+        { input: '3 + 4', expected: '7' },
+        { input: '3 + 4.5', expected: '7.5' },
+        { input: '3.2 + 4.7', expected: '7.9' },
+        { input: '"3" + "4"', expected: '7' },
+        { input: '"3" + "4.5"', expected: '7.5' },
+        { input: '"3.2" + "4.7"', expected: '7.9' },
+        { input: '1 + 2 + 3', expected: '6' }
+      ])
+    })
+
+    it('should interpret subtraction', () => {
+      return testExprs([
+        { input: '5 - 3', expected: '2' },
+        { input: '3.5 - 2.1', expected: '1.4' },
+        { input: '3 - 2.0', expected: '1.0' },
+        { input: '"4" - "3"', expected: '1' },
+        { input: '"3" - "1.2"', expected: '1.8' },
+        { input: '"3.5" - "2.1"', expected: '1.4' },
+        { input: '10 - 2 - 2', expected: '6' }
+      ])
+    })
+
+    it('should interpret multiplication', () => {
+      return testExprs([
+        { input: '5 * 3', expected: '15' },
+        { input: '0.5 * 8', expected: '4.0' },
+        { input: '"4" * "3"', expected: '12' },
+        { input: '2 * 3 * 4', expected: '24' }
+      ])
+    })
+
+    it('should interpret division', () => {
+      return testExprs([
+        { input: '30 / 4', expected: '7' },
+        { input: '30 / 4.0', expected: '7.5' },
+        { input: '"30" / "4"', expected: '7' },
+        { input: '"30" / "4.0"', expected: '7.5' }
+      ])
+    })
+
+    it('should interpret modulus', () => {
+      return testExprs([
+        { input: '10.0 % 2', expected: '0.0' },
+        { input: '10 % 2', expected: '0' }
+      ])
+    })
+
+    it('should interpret negation', () => {
+      return testExprs([
+        { input: '-5', expected: '-5' },
+        { input: '-5.3', expected: '-5.3' },
+        { input: '"-5"', expected: '-5' },
+        { input: '"-5.25"', expected: '-5.25' }
+      ])
+    })
+
+    it('should unary +', () => {
+      return testExprs([
+        { input: '+5', expected: '5' },
+        { input: '+-5', expected: '-5' }
+      ])
+    })
+  })
+
+  describe('variables', () => {
+    it('should initialize with null value', () => {
+      return testExprs([
+        { input: 'type(x)', expected: 'null' }
+      ])
+    })
+
+    it('should allow overwrites', () => {
+      return testProgram(`
+procedure main()
+    t := 1
+    t := 2
+    writes(t)
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('2')
+      })
+    })
+
+    it('can be assigned the value of another variable', () => {
+      return testProgram(`
+procedure main()
+    x := 42
+    y := x
+    writes(y)
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('42')
+      })
+    })
+
+    it('may be explicitly assigned the &null value', () => {
+      return testProgram(`
+procedure main()
+    x := &null
+    writes(type(x))
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('null')
+      })
+    })
   })
 })

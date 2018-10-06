@@ -23,7 +23,7 @@ const evalProcedure = ({ env, evaluate }) => ({
 const evalCall = ({ env, evaluate }) => ({
   Call: (node, result) => {
     // Calls cascade. If the result of the previous call was a failure, don't even run.
-    if (result.isFailure) { return Promise.resolve(result) }
+    if (result && result.isFailure) { return Promise.resolve(result) }
 
     // Evaluate the args in series, waterfalling the results.
     return node.arguments.reduce(
@@ -46,6 +46,22 @@ const evalCall = ({ env, evaluate }) => ({
   }
 })
 
+const evalUnaryOp = ({ env, evaluate }) => ({
+  UnaryOp: (node, result) =>
+    evaluate(node.right).then((rres) => {
+      if (rres.isFailure) { return rres }
+      switch (node.operator.type) {
+        case 'Minus':
+          return rres.chain(Type.toNumber).map(rval => rval.map(v => -v))
+
+        case 'Plus':
+          return rres.chain(Type.toNumber)
+
+        default: throw new Error(`Unimplemented binary op: ${node.operator.type}`)
+      }
+    })
+})
+
 const evalBinaryOp = ({ env, evaluate }) => ({
   BinaryOp: (node, result) =>
     evaluate(node.left).then((lres) => {
@@ -58,12 +74,25 @@ const evalBinaryOp = ({ env, evaluate }) => ({
             env.scope.define(node.left.name, rres.value)
             return rres
 
+          case 'Minus':
+            return Type.toNumbers([lres.value, rres.value])
+              .map(([left, right]) => left.map(lval => lval - right.value))
+
+          case 'Mod':
+            return Type.toNumbers([lres.value, rres.value])
+              .map(([left, right]) => left.map(lval => lval % right.value))
+
           case 'Plus':
             return Type.toNumbers([lres.value, rres.value])
               .map(([left, right]) => left.map(lval => lval + right.value))
-            // return Success(a => b => new Type.IconInteger(a.value + b.value))
-            //   .ap(lres.chain(Type.toInteger))
-            //   .ap(rres.chain(Type.toInteger))
+
+          case 'Slash':
+            return Type.toNumbers([lres.value, rres.value])
+              .map(([left, right]) => left.map(lval => lval / right.value))
+
+          case 'Star':
+            return Type.toNumbers([lres.value, rres.value])
+              .map(([left, right]) => left.map(lval => lval * right.value))
 
           default: throw new Error(`Unimplemented binary op: ${node.operator.type}`)
         }
@@ -97,6 +126,7 @@ module.exports = function (options) {
     evalProgram(opts),
     evalProcedure(opts),
     evalCall(opts),
+    evalUnaryOp(opts),
     evalBinaryOp(opts),
     evalPrimaryTypes(opts)
   )

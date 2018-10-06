@@ -1,4 +1,6 @@
 const { notImplemented } = require('./util')
+const { Success } = require('../result')
+const Type = require('../types')
 
 module.exports = function (env) {
   return {
@@ -182,6 +184,6 @@ module.exports = function (env) {
      *
      * @param {*} x Variable
      */
-    type: notImplemented('type')
+    type: x => Success(new Type.IconString(x.type === 'function' ? 'procedure' : x.type))
   }
 }

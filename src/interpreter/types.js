@@ -35,7 +35,9 @@ function createCtor (type, initialize) {
 
 const IconCoexpression = createCtor('coexpression')
 const IconFunction = createCtor('function')
-const IconInteger = createCtor('integer')
+const IconInteger = createCtor('integer', (self, value) => {
+  self.value = Math.trunc(value)
+})
 const IconList = createCtor('list')
 const IconProcedure = createCtor('procedure')
 const IconReal = createCtor('real')
@@ -108,7 +110,7 @@ function toNumber (value) {
     case 'string': {
       const val = parseFloat(value.value)
       if (isNaN(val)) { return Failure(`numeric expected\noffending value: ${value.value}`) }
-      return Success(val % 1 === 0 ? new IconInteger(val) : new IconReal(val))
+      return Success(value.value.includes('.') ? new IconReal(val) : new IconInteger(val))
     }
 
     default:

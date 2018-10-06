@@ -112,15 +112,27 @@ ${errorContext}
   }
 
   function unary () {
+    if (
+      match('Minus') ||
+      match('Plus')
+    ) {
+      const op = previous()
+      const right = unary()
+      return {
+        type: 'UnaryOp',
+        operator: op,
+        right
+      }
+    }
     return call()
   }
 
   function multiplication () {
     let expr = unary()
-    if (
+    while (
       match('Star') ||
       match('Slash') ||
-      match('Percent') ||
+      match('Mod') ||
       match('StarStar')
     ) {
       const op = previous()
@@ -137,7 +149,7 @@ ${errorContext}
 
   function addition () {
     let expr = multiplication()
-    if (
+    while (
       match('Plus') ||
       match('Minus') ||
       match('PlusPlus') ||
@@ -157,7 +169,7 @@ ${errorContext}
 
   function comparison () {
     let expr = addition()
-    if (
+    while (
       match('Less') ||
       match('LessEq') ||
       match('Eq') ||
