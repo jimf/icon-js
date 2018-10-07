@@ -76,6 +76,13 @@ IconReal.prototype.toString = function toString () {
 IconString.prototype.size = function size () {
   return this.value.length
 }
+IconString.prototype.subscript = function subscript (pos) {
+  let idx = pos - 1
+  if (pos <= 0) { idx = this.value.length - 1 + pos }
+  return (idx < 0 || idx >= this.value.length)
+    ? Failure('string subscript out of bounds')
+    : Success(new IconString(this.value.charAt(idx)))
+}
 
 function toInteger (value) {
   switch (value.type) {
@@ -87,7 +94,7 @@ function toInteger (value) {
         ? Failure(`numeric expected\noffending value: "${value.value}"`)
         : Success(new IconInteger(parsed))
     }
-    default: return Failure(`numeric expected\noffending value: ${value.value}`)
+    default: return Failure(`numeric expected\noffending value: ${value.type}`)
   }
 }
 
@@ -101,7 +108,7 @@ function toReal (value) {
         ? Failure(`numeric expected\noffending value: ${value.value}`)
         : Success(new IconReal(parsed))
     }
-    default: return Failure(`numeric expected\noffending value: ${value.value}`)
+    default: return Failure(`numeric expected\noffending value: ${value.type}`)
   }
 }
 
@@ -118,7 +125,7 @@ function toNumber (value) {
     }
 
     default:
-      return Failure(`numeric expected\noffending value: ${value.value}`)
+      return Failure(`numeric expected\noffending value: ${value.type}`)
   }
 }
 

@@ -2,6 +2,13 @@ const { Success, Failure } = require('../result')
 const Scope = require('../scope')
 const Type = require('../types')
 
+const evalNodeArray = (evaluate, nodes) =>
+  nodes.reduce((acc, expr) =>
+    acc.then((valsResult) =>
+      evaluate(expr).then((vres) =>
+        Success(vs => v => [...vs, v]).ap(valsResult).ap(vres))),
+  Promise.resolve(Success([])))
+
 const evalProgram = ({ evaluate }) => ({
   Program: (node, result) =>
     (node.procedures.main ? evaluate(node.procedures.main) : Promise.resolve())
@@ -26,13 +33,7 @@ const evalCall = ({ env, evaluate }) => ({
     if (result && result.isFailure) { return Promise.resolve(result) }
 
     // Evaluate the args in series, waterfalling the results.
-    return node.arguments.reduce(
-      (acc, expr) =>
-        acc.then((valsResult) =>
-          evaluate(expr).then((vres) =>
-            Success(vs => v => [...vs, v]).ap(valsResult).ap(vres))),
-      Promise.resolve(Success([]))
-    ).then((valsResult) => {
+    return evalNodeArray(evaluate, node.arguments).then((valsResult) => {
       // If the result of any of the args is a failure, don't run.
       if (valsResult.isFailure) {
         return valsResult
@@ -42,6 +43,41 @@ const evalCall = ({ env, evaluate }) => ({
         return func.value(...valsResult.value)
       }
       throw new Error(`Unimplemented procedure call to ${node.callee.name}`)
+    })
+  }
+})
+
+const evalSubscript = ({ env, evaluate }) => ({
+  Subscript: (node, result) => {
+    // Evaluate the subscripts in series, waterfalling the results.
+    return evaluate(node.callee).then((calleeRes) => {
+      return evalNodeArray(evaluate, node.subscripts).then((subsResult) => {
+        // If the result of any of the args is a failure, don't run.
+        if (calleeRes.isFailure) { return calleeRes }
+        if (subsResult.isFailure) { return subsResult }
+
+        // TODO: Cheating a lot here with isFailure checks. Could
+        // probably clean this up.
+        // TODO: Common/tedious to accumulate Success(Array(T)).
+        // Could use some helpers here. Maybe consider a List type
+        // and implement sequence/traverse.
+        const strRes = Type.toString(calleeRes.value)
+        if (strRes.isFailure) { return strRes }
+        const subsResultInts = subsResult.value.reduce(
+          (acc, sub) => {
+            if (acc.isFailure) { return acc }
+            const intRes = Type.toInteger(sub)
+            return intRes.cata({
+              Failure: () => intRes,
+              Success: (intT) => Success([...acc.value, intRes.value])
+            })
+          },
+          Success([])
+        )
+        if (subsResultInts.isFailure) { return subsResultInts }
+        const args = subsResultInts.value.map(intT => intT.value)
+        return strRes.value.subscript(...args)
+      })
     })
   }
 })
@@ -115,8 +151,9 @@ const evalBinaryOp = ({ env, evaluate }) => ({
     })
 })
 
-const evalPrimaryTypes = ({ env }) => ({
+const evalPrimaryTypes = ({ env, evaluate }) => ({
   Cset: node => Promise.resolve(Success(new Type.IconCset(node.value))),
+  Grouping: node => evaluate(node.expression),
   Identifier: node => Promise.resolve(Success(env.scope.lookup(node.name))),
   Integer: node => Promise.resolve(Success(new Type.IconInteger(node.value))),
   Keyword: node => Promise.resolve(Success(env.scope.lookup(node.name))),
@@ -141,6 +178,7 @@ module.exports = function (options) {
     evalProgram(opts),
     evalProcedure(opts),
     evalCall(opts),
+    evalSubscript(opts),
     evalUnaryOp(opts),
     evalBinaryOp(opts),
     evalPrimaryTypes(opts)

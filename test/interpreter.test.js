@@ -195,6 +195,13 @@ end
         { input: '"a" || "b" || "c"', expected: 'abc' }
       ])
     })
+
+    it('should interpret grouped operations', () => {
+      return testExprs([
+        { input: '*("hello" || "world")', expected: '10' },
+        { input: '3 * (5 - 4)', expected: '3' }
+      ])
+    })
   })
 
   describe('variables', () => {
@@ -242,6 +249,16 @@ end
     it('should never cast &null to appropriate type', () => {
       return testExprs([
         { input: 'x + 10', expected: '', expectedErr: expect.stringContaining('offending value: null') }
+      ])
+    })
+  })
+
+  describe('subscripts', () => {
+    it('should interpret subscripts', () => {
+      return testExprs([
+        { input: '"abcdef"[3]', expected: 'c' },
+        { input: '"abcdef"[0]', expected: 'f' },
+        { input: '"abcdef"[-1]', expected: 'e' }
       ])
     })
   })

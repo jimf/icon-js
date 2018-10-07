@@ -107,6 +107,19 @@ ${errorContext}
         callee: expr,
         arguments: args
       }
+    } else if (match('LBracket')) {
+      const subscripts = []
+      if (!check('RBracket')) {
+        do {
+          subscripts.push(expression())
+        } while (match('Comma'))
+      }
+      expect(match('RBracket'), 'closing "]" after subscript(s)')
+      return {
+        type: 'Subscript',
+        callee: expr,
+        subscripts
+      }
     }
     return expr
   }
