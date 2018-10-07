@@ -114,7 +114,8 @@ ${errorContext}
   function unary () {
     if (
       match('Minus') ||
-      match('Plus')
+      match('Plus') ||
+      match('Star')
     ) {
       const op = previous()
       const right = unary()
@@ -127,8 +128,23 @@ ${errorContext}
     return call()
   }
 
+  function exponentiation () {
+    const expr = unary()
+    if (match('Caret')) {
+      const op = previous()
+      const right = exponentiation()
+      return {
+        type: 'BinaryOp',
+        operator: op,
+        left: expr,
+        right
+      }
+    }
+    return expr
+  }
+
   function multiplication () {
-    let expr = unary()
+    let expr = exponentiation()
     while (
       match('Star') ||
       match('Slash') ||
@@ -136,7 +152,7 @@ ${errorContext}
       match('StarStar')
     ) {
       const op = previous()
-      const right = unary()
+      const right = exponentiation()
       expr = {
         type: 'BinaryOp',
         operator: op,
@@ -167,8 +183,23 @@ ${errorContext}
     return expr
   }
 
-  function comparison () {
+  function concatenation () {
     let expr = addition()
+    while (match('PipePipe') || match('PipePipePipe')) {
+      const op = previous()
+      const right = addition()
+      expr = {
+        type: 'BinaryOp',
+        operator: op,
+        left: expr,
+        right
+      }
+    }
+    return expr
+  }
+
+  function comparison () {
+    let expr = concatenation()
     while (
       match('Less') ||
       match('LessEq') ||
@@ -186,7 +217,7 @@ ${errorContext}
       match('TildeEqEqEq')
     ) {
       const op = previous()
-      const right = addition()
+      const right = concatenation()
       expr = {
         type: 'BinaryOp',
         operator: op,

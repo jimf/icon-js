@@ -4,12 +4,18 @@ const Icon = require('../src/interpreter')
 describe('Interpreter', () => {
   const testProgram = src => {
     let stdout = ''
+    let stderr = ''
+    let err = null
     const opts = {
       readStdin: () => {},
       writeStdout: s => { stdout += s },
-      writeStderr: () => {}
+      writeStderr: s => { stderr += s }
     }
-    return Icon(src, opts).run().then(() => ({ stdout }))
+    return Icon(src, opts).run()
+      .catch((e) => {
+        err = e.message
+      })
+      .then(() => ({ stdout, stderr, err }))
   }
 
   const testExpr = expr => {
@@ -22,8 +28,11 @@ end`
 
   const testExprs = cases =>
     cases.reduce(
-      (acc, { input, expected }) => acc.then(() => testExpr(input).then(({ stdout }) => {
+      (acc, { input, expected, expectedErr }) => acc.then(() => testExpr(input).then(({ stdout, err }) => {
         expect(stdout).toBe(expected)
+        if (expectedErr !== undefined) {
+          expect(err).toEqual(expectedErr)
+        }
       })),
       Promise.resolve()
     )
@@ -159,10 +168,31 @@ end
       ])
     })
 
-    it('should unary +', () => {
+    it('should interpret unary +', () => {
       return testExprs([
         { input: '+5', expected: '5' },
         { input: '+-5', expected: '-5' }
+      ])
+    })
+
+    it('should interpret unary * (size)', () => {
+      return testExprs([
+        { input: '*"abc"', expected: '3' }
+      ])
+    })
+
+    it('should interpret exponentiation', () => {
+      return testExprs([
+        { input: '2 ^ 3', expected: '8' },
+        { input: '2 ^ 2 ^ 3', expected: '256' }
+      ])
+    })
+
+    it('should interpret string concatenation', () => {
+      return testExprs([
+        { input: '"hello" || "world"', expected: 'helloworld' },
+        { input: '3 || 4', expected: '34' },
+        { input: '"a" || "b" || "c"', expected: 'abc' }
       ])
     })
   })
@@ -207,6 +237,12 @@ end
       `).then(({ stdout }) => {
         expect(stdout).toBe('null')
       })
+    })
+
+    it('should never cast &null to appropriate type', () => {
+      return testExprs([
+        { input: 'x + 10', expected: '', expectedErr: expect.stringContaining('offending value: null') }
+      ])
     })
   })
 })

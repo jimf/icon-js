@@ -73,6 +73,10 @@ IconReal.prototype.toString = function toString () {
   return res.includes('.') ? res : res + '.0'
 }
 
+IconString.prototype.size = function size () {
+  return this.value.length
+}
+
 function toInteger (value) {
   switch (value.type) {
     case 'integer': return Success(value)
@@ -123,8 +127,12 @@ function toNumbers (values) {
     return acc.result.cata({
       Failure: () => acc,
       Success: (nums) => {
-        return toNumber(val).cata({
-          Failure: () => acc,
+        const toNumRes = toNumber(val)
+        return toNumRes.cata({
+          Failure: () => {
+            acc.result = toNumRes
+            return acc
+          },
           Success: (num) => {
             acc.result = Success([...nums, num])
             if (acc.prevType !== null && acc.prevType !== num.type) {

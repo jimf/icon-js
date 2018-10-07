@@ -1,4 +1,4 @@
-const { Success } = require('../result')
+const { Success, Failure } = require('../result')
 const Scope = require('../scope')
 const Type = require('../types')
 
@@ -57,6 +57,12 @@ const evalUnaryOp = ({ env, evaluate }) => ({
         case 'Plus':
           return rres.chain(Type.toNumber)
 
+        case 'Star':
+          return rres.chain(t => t.size
+            ? Success(new Type.IconInteger(t.size()))
+            : Failure(`invalid type to size operation\noffending value: ${t.type}`)
+          )
+
         default: throw new Error(`Unimplemented binary op: ${node.operator.type}`)
       }
     })
@@ -74,6 +80,10 @@ const evalBinaryOp = ({ env, evaluate }) => ({
             env.scope.define(node.left.name, rres.value)
             return rres
 
+          case 'Caret':
+            return Type.toNumbers([lres.value, rres.value])
+              .map(([left, right]) => left.map(lval => Math.pow(lval, right.value)))
+
           case 'Minus':
             return Type.toNumbers([lres.value, rres.value])
               .map(([left, right]) => left.map(lval => lval - right.value))
@@ -81,6 +91,11 @@ const evalBinaryOp = ({ env, evaluate }) => ({
           case 'Mod':
             return Type.toNumbers([lres.value, rres.value])
               .map(([left, right]) => left.map(lval => lval % right.value))
+
+          case 'PipePipe':
+            return Success(xt => yt => xt.map(() => xt.toString() + yt.toString()))
+              .ap(lres.chain(Type.toString))
+              .ap(rres.chain(Type.toString))
 
           case 'Plus':
             return Type.toNumbers([lres.value, rres.value])
