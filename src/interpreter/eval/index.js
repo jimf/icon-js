@@ -56,24 +56,9 @@ const evalSubscript = ({ env, evaluate }) => ({
         if (calleeRes.isFailure) { return calleeRes }
         if (subsResult.isFailure) { return subsResult }
 
-        // TODO: Cheating a lot here with isFailure checks. Could
-        // probably clean this up.
-        // TODO: Common/tedious to accumulate Success(Array(T)).
-        // Could use some helpers here. Maybe consider a List type
-        // and implement sequence/traverse.
         const strRes = Type.toString(calleeRes.value)
         if (strRes.isFailure) { return strRes }
-        const subsResultInts = subsResult.value.reduce(
-          (acc, sub) => {
-            if (acc.isFailure) { return acc }
-            const intRes = Type.toInteger(sub)
-            return intRes.cata({
-              Failure: () => intRes,
-              Success: (intT) => Success([...acc.value, intRes.value])
-            })
-          },
-          Success([])
-        )
+        const subsResultInts = Type.tryCoerceAll(subsResult.value, Type.toInteger)
         if (subsResultInts.isFailure) { return subsResultInts }
         const args = subsResultInts.value.map(intT => intT.value)
         return strRes.value.subscript(...args)

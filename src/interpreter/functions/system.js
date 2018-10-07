@@ -1,5 +1,6 @@
 const { notImplemented } = require('./util')
 const { Success } = require('../result')
+const Type = require('../types')
 
 module.exports = function (env) {
   return {
@@ -160,16 +161,26 @@ module.exports = function (env) {
      * Write expressions, then newline.
      */
     write (...args) {
-      env.writeStdout(args.map(arg => arg.toString()).join('') + '\n')
-      return Success(args[args.length - 1])
+      return Type.tryCoerceAll(args, Type.toString).cata({
+        Failure: errRes => errRes,
+        Success: (strArgs) => {
+          env.writeStdout(strArgs.map(arg => arg.toString()).join('') + '\n')
+          return Success(strArgs[strArgs.length - 1])
+        }
+      })
     },
 
     /**
      * Write expressions, no newline.
      */
     writes (...args) {
-      env.writeStdout(args.map(arg => arg.toString()).join(''))
-      return Success(args[args.length - 1])
+      return Type.tryCoerceAll(args, Type.toString).cata({
+        Failure: errRes => errRes,
+        Success: (strArgs) => {
+          env.writeStdout(strArgs.map(arg => arg.toString()).join(''))
+          return Success(strArgs[strArgs.length - 1])
+        }
+      })
     }
   }
 }

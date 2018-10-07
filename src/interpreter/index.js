@@ -21,11 +21,7 @@ function Icon (input, options) {
   })
 
   function run () {
-    return evaluate(ast).then((result) => {
-      if (result && result.isFailure) {
-        throw new Error(`Runtime Error:\n${result.reason}`)
-      }
-    })
+    return evaluate(ast)
   }
 
   return { run }

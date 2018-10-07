@@ -59,7 +59,7 @@ const IconCset = createCtor('cset', (self, value) => {
 IconCset.prototype.toString = function toString () {
   return this._string
 }
-IconCset.prototype.isEqual = function isEqual (other) {
+IconCset.prototype.equals = function equals (other) {
   return other.isCset && this._string === other._string
 }
 
@@ -94,7 +94,7 @@ function toInteger (value) {
         ? Failure(`numeric expected\noffending value: "${value.value}"`)
         : Success(new IconInteger(parsed))
     }
-    default: return Failure(`numeric expected\noffending value: ${value.type}`)
+    default: throw new Error(`numeric expected\noffending value: ${value.type}`)
   }
 }
 
@@ -108,7 +108,7 @@ function toReal (value) {
         ? Failure(`numeric expected\noffending value: ${value.value}`)
         : Success(new IconReal(parsed))
     }
-    default: return Failure(`numeric expected\noffending value: ${value.type}`)
+    default: throw new Error(`numeric expected\noffending value: ${value.type}`)
   }
 }
 
@@ -125,7 +125,7 @@ function toNumber (value) {
     }
 
     default:
-      return Failure(`numeric expected\noffending value: ${value.type}`)
+      throw new Error(`numeric expected\noffending value: ${value.type}`)
   }
 }
 
@@ -167,7 +167,7 @@ function toString (value) {
     case 'cset':
       return Success(new IconString(value.toString()))
 
-    default: return Failure()
+    default: throw new Error(`string or file expected\noffending value: ${value.value}`)
   }
 }
 
@@ -176,6 +176,17 @@ function toCset (value) {
     case 'string': return Success(new IconCset(value.value))
     default: return Failure()
   }
+}
+
+function tryCoerceAll (values, coerceFn) {
+  return values.reduce((acc, value) => {
+    if (acc.isFailure) { return acc }
+    const res = coerceFn(value)
+    return res.cata({
+      Failure: () => res,
+      Success: (newVal) => Success([...acc.value, newVal])
+    })
+  }, Success([]))
 }
 
 module.exports = {
@@ -194,5 +205,6 @@ module.exports = {
   toNumber,
   toNumbers,
   toReal,
-  toString
+  toString,
+  tryCoerceAll
 }
