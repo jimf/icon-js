@@ -2,6 +2,9 @@ const { notImplemented } = require('./util')
 const { Success } = require('../result')
 const Type = require('../types')
 
+const toWriteString = t =>
+  t.isNull ? Success(new Type.IconString('')) : Type.toString(t)
+
 module.exports = function (env) {
   return {
     /**
@@ -97,7 +100,10 @@ module.exports = function (env) {
      *
      * @param {IconFile} f File
      */
-    read: notImplemented('read'),
+    read: (file) => {
+      if (!file || file.isNull) { file = env.scope.lookup('&input') }
+      return file.read()
+    },
 
     /**
      * Read next n characters from f, may be short, fails
@@ -161,7 +167,7 @@ module.exports = function (env) {
      * Write expressions, then newline.
      */
     write (...args) {
-      return Type.tryCoerceAll(args, Type.toString).cata({
+      return Type.tryCoerceAll(args, toWriteString).cata({
         Failure: errRes => errRes,
         Success: (strArgs) => {
           env.writeStdout(strArgs.map(arg => arg.toString()).join('') + '\n')
@@ -174,7 +180,7 @@ module.exports = function (env) {
      * Write expressions, no newline.
      */
     writes (...args) {
-      return Type.tryCoerceAll(args, Type.toString).cata({
+      return Type.tryCoerceAll(args, toWriteString).cata({
         Failure: errRes => errRes,
         Success: (strArgs) => {
           env.writeStdout(strArgs.map(arg => arg.toString()).join(''))

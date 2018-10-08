@@ -202,6 +202,57 @@ end
         { input: '3 * (5 - 4)', expected: '3' }
       ])
     })
+
+    it('should interpret numeric equality', () => {
+      return testExprs([
+        { input: '1 = 1', expected: '1' },
+        { input: '1 = 0', expected: '' },
+        { input: '1.0 = 1.0', expected: '1.0' },
+        { input: '1.0 = 0.0', expected: '' },
+        { input: '1 = 0.0', expected: '' },
+        { input: '1 = 1.0', expected: '1.0' },
+        { input: '"1" = "1"', expected: '1' },
+        { input: '1 <= 1', expected: '1' },
+        { input: '0 <= 1', expected: '1' },
+        { input: '2 <= 1', expected: '' },
+        { input: '2 < 1', expected: '' },
+        { input: '1 < 1', expected: '' },
+        { input: '0 < 1', expected: '1' },
+        { input: '2 > 1', expected: '1' },
+        { input: '1 > 1', expected: '' },
+        { input: '0 > 1', expected: '' },
+        { input: '2 >= 1', expected: '1' },
+        { input: '1 >= 1', expected: '1' },
+        { input: '0 >= 1', expected: '' },
+        { input: '2 ~= 1', expected: '1' },
+        { input: '1 ~= 1', expected: '' },
+        { input: '0 ~= 1', expected: '1' },
+        { input: '1 + 2 < 3 * 4 > 5', expected: '5' }
+      ])
+    })
+
+    it('should interpret string equality', () => {
+      return testExprs([
+        { input: '"c" == "b"', expected: '' },
+        { input: '"b" == "b"', expected: 'b' },
+        { input: '"b" == "a"', expected: '' },
+        { input: '"b" <<= "b"', expected: 'b' },
+        { input: '"a" <<= "b"', expected: 'b' },
+        { input: '"c" <<= "b"', expected: '' },
+        { input: '"c" << "b"', expected: '' },
+        { input: '"b" << "b"', expected: '' },
+        { input: '"a" << "b"', expected: 'b' },
+        { input: '"c" >> "b"', expected: 'b' },
+        { input: '"b" >> "b"', expected: '' },
+        { input: '"a" >> "b"', expected: '' },
+        { input: '"c" >>= "b"', expected: 'b' },
+        { input: '"b" >>= "b"', expected: 'b' },
+        { input: '"a" >>= "b"', expected: '' },
+        { input: '"c" ~== "b"', expected: 'b' },
+        { input: '"b" ~== "b"', expected: '' },
+        { input: '"a" ~== "b"', expected: 'b' }
+      ])
+    })
   })
 
   describe('variables', () => {

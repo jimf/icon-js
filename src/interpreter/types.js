@@ -2,6 +2,16 @@ const { Success, Failure } = require('./result')
 
 const capitalize = s => s.charAt(0).toUpperCase() + s.slice(1)
 
+function Ord (Ctor) {
+  Ctor.prototype.equals = function equals (other) {
+    return this.value === other.value
+  }
+  Ctor.prototype.lte = function lte (other) {
+    return this.value < other.value || this.equals(other)
+  }
+  return Ctor
+}
+
 function IconBase (type, value = null) {
   this.type = type
   this[`is${capitalize(type)}`] = true
@@ -34,14 +44,15 @@ function createCtor (type, initialize) {
 }
 
 const IconCoexpression = createCtor('coexpression')
+const IconFile = createCtor('file')
 const IconFunction = createCtor('function')
-const IconInteger = createCtor('integer', (self, value) => {
+const IconInteger = Ord(createCtor('integer', (self, value) => {
   self.value = Math.trunc(value)
-})
+}))
 const IconList = createCtor('list')
 const IconProcedure = createCtor('procedure')
-const IconReal = createCtor('real')
-const IconString = createCtor('string')
+const IconReal = Ord(createCtor('real'))
+const IconString = Ord(createCtor('string'))
 const IconTable = createCtor('table')
 
 const IconCset = createCtor('cset', (self, value) => {
@@ -61,6 +72,25 @@ IconCset.prototype.toString = function toString () {
 }
 IconCset.prototype.equals = function equals (other) {
   return other.isCset && this._string === other._string
+}
+
+IconFile.prototype.read = function read () {
+  return this._readFile().then(() => this._next())
+}
+IconFile.prototype._readFile = function _readFile () {
+  if (this._buffer) { return Promise.resolve() }
+  return this.value.read().then((contents) => {
+    this._buffer = contents.split('\n')
+    if (this._buffer[this._buffer.length - 1] === '') {
+      this._buffer.pop()
+    }
+  })
+}
+IconFile.prototype._next = function _next () {
+  if (!this._buffer || this._buffer.length === 0) { return Failure() }
+  const next = this._buffer.shift()
+  if (this._buffer.length === 0) { delete this._buffer }
+  return Success(new IconString(next))
 }
 
 const IconNull = createCtor('null')
@@ -192,6 +222,7 @@ function tryCoerceAll (values, coerceFn) {
 module.exports = {
   IconCoexpression,
   IconCset,
+  IconFile,
   IconFunction,
   IconInteger,
   IconList,

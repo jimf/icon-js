@@ -10,7 +10,7 @@ function Icon (input, options) {
   const env = Object.assign({}, options, { scope: rootScope })
   const ast = parse(input)
   const functions = defineFunctions(env)
-  const keywords = defineKeywords()
+  const keywords = defineKeywords(env)
   const evaluate = Eval({ env })
 
   Object.keys(functions).forEach((funcName) => {

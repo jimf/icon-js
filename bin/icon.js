@@ -1,8 +1,16 @@
 #!/usr/bin/env node
 /* eslint no-console:0 */
 
-const readStdin = require('get-stdin')
 const cli = require('../src/cli')
+
+const readStdin = () => {
+  return new Promise((resolve, reject) => {
+    process.stdin.once('data', (data) => {
+      resolve(data.toString().trim())
+    })
+    process.stdin.once('error', reject)
+  })
+}
 
 const opts = {
   readStdin,

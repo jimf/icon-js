@@ -18,7 +18,7 @@ const evalProcedure = ({ env, evaluate }) => ({
   Procedure: (node, result) => {
     env.scope = Scope(env.scope)
     return node.body.reduce(
-      (acc, expr) => acc.then((r) => evaluate(expr, r)),
+      (acc, expr) => acc.then((r) => evaluate(expr)),
       Promise.resolve(Success(new Type.IconNull()))
     ).then((res) => {
       env.scope = env.scope.pop()
@@ -105,6 +105,54 @@ const evalBinaryOp = ({ env, evaluate }) => ({
             return Type.toNumbers([lres.value, rres.value])
               .map(([left, right]) => left.map(lval => Math.pow(lval, right.value)))
 
+          case 'Eq':
+            return Type.toNumbers([lres.value, rres.value])
+              .chain(([left, right]) => left.equals(right) ? Success(right) : Failure())
+
+          case 'EqEq':
+            return Type.tryCoerceAll([lres.value, rres.value], Type.toString)
+              .chain(([left, right]) => left.equals(right) ? Success(right) : Failure())
+
+          case 'Greater':
+            return Type.toNumbers([lres.value, rres.value])
+              .chain(([left, right]) => !left.lte(right) ? Success(right) : Failure())
+
+          case 'GreaterGreater':
+            return Type.tryCoerceAll([lres.value, rres.value], Type.toString)
+              .chain(([left, right]) => !left.lte(right) ? Success(right) : Failure())
+
+          case 'GreaterEq':
+            return Type.toNumbers([lres.value, rres.value])
+              .chain(([left, right]) => left.equals(right) || !left.lte(right)
+                ? Success(right)
+                : Failure())
+
+          case 'GreaterGreaterEq':
+            return Type.tryCoerceAll([lres.value, rres.value], Type.toString)
+              .chain(([left, right]) => left.equals(right) || !left.lte(right)
+                ? Success(right)
+                : Failure())
+
+          case 'Less':
+            return Type.toNumbers([lres.value, rres.value])
+              .chain(([left, right]) => left.lte(right) && !left.equals(right)
+                ? Success(right)
+                : Failure())
+
+          case 'LessLess':
+            return Type.tryCoerceAll([lres.value, rres.value], Type.toString)
+              .chain(([left, right]) => left.lte(right) && !left.equals(right)
+                ? Success(right)
+                : Failure())
+
+          case 'LessEq':
+            return Type.toNumbers([lres.value, rres.value])
+              .chain(([left, right]) => left.lte(right) ? Success(right) : Failure())
+
+          case 'LessLessEq':
+            return Type.tryCoerceAll([lres.value, rres.value], Type.toString)
+              .chain(([left, right]) => left.lte(right) ? Success(right) : Failure())
+
           case 'Minus':
             return Type.toNumbers([lres.value, rres.value])
               .map(([left, right]) => left.map(lval => lval - right.value))
@@ -130,10 +178,34 @@ const evalBinaryOp = ({ env, evaluate }) => ({
             return Type.toNumbers([lres.value, rres.value])
               .map(([left, right]) => left.map(lval => lval * right.value))
 
+          case 'TildeEq':
+            return Type.toNumbers([lres.value, rres.value])
+              .chain(([left, right]) => !left.equals(right) ? Success(right) : Failure())
+
+          case 'TildeEqEq':
+            return Type.tryCoerceAll([lres.value, rres.value], Type.toString)
+              .chain(([left, right]) => !left.equals(right) ? Success(right) : Failure())
+
           default: throw new Error(`Unimplemented binary op: ${node.operator.type}`)
         }
       })
     })
+})
+
+const evalControlStructs = ({ evaluate }) => ({
+  WhileExpression: (node) => {
+    function evalWhile () {
+      return evaluate(node.expr1).then((expr1Res) => {
+        return expr1Res.cata({
+          Failure: () => Success() /* FIXME ??? */,
+          Success: () => {
+            return evaluate(node.expr2).then(() => evalWhile())
+          }
+        })
+      })
+    }
+    return evalWhile()
+  }
 })
 
 const evalPrimaryTypes = ({ env, evaluate }) => ({
@@ -166,6 +238,7 @@ module.exports = function (options) {
     evalSubscript(opts),
     evalUnaryOp(opts),
     evalBinaryOp(opts),
+    evalControlStructs(opts),
     evalPrimaryTypes(opts)
   )
 

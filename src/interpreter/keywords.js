@@ -11,7 +11,7 @@ const asciiRange = (start, end) => {
 const lower = asciiRange(ascii('a'), ascii('z'))
 const upper = asciiRange(ascii('A'), ascii('Z'))
 
-module.exports = function () {
+module.exports = function (env) {
   return {
     // &allocated : i1,i2,i3,i4    # accumulated bytes allocated
     //                             # (total,static,string,block)
@@ -40,7 +40,10 @@ module.exports = function () {
     // &features : s1,s2,...,sn    # implementation features
     // &file : s                   # current source code file name
     // &host : s                   # string identifying host computer
-    // &input : f                  # standard input file
+    '&input': new Type.IconFile({
+      read: env.readStdin,
+      write: () => Promise.resolve()
+    }),
     '&lcase': new Type.IconCset(lower),
     '&letters': new Type.IconCset(upper + lower),
     // &level : i                  # level of current procedure call
