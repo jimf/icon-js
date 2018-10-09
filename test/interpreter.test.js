@@ -96,7 +96,92 @@ end
     }, Promise.resolve())
   })
 
+  describe('compound expression', () => {
+    it('should evaluate expressions in turn', () => {
+      const prg = `
+procedure main()
+  { write(1); write(2); write(3) }
+end`
+      return testProgram(prg).then(({ stdout }) => {
+        expect(stdout).toBe('1\n2\n3\n')
+      })
+    })
+
+    it('should return result of final expression', () => {
+      const prg = `
+procedure main()
+  write({ write(1); write(2); write(3) })
+end`
+      return testProgram(prg).then(({ stdout }) => {
+        expect(stdout).toBe('1\n2\n3\n3\n')
+      })
+    })
+
+    it('should not stop evaluation on failing sub-expression', () => {
+      const prg = `
+procedure main()
+  { write(1); write(2 < 1); write(3) }
+end`
+      return testProgram(prg).then(({ stdout }) => {
+        expect(stdout).toBe('1\n3\n')
+      })
+    })
+  })
+
+  describe('control structures', () => {
+    describe('if-then-else', () => {
+      it('should result in expr2 when expr1 succeeds', () => {
+        const prg = `
+procedure main()
+  writes(if 1 < 2 then 3 else 4)
+end`
+        return testProgram(prg).then(({ stdout }) => {
+          expect(stdout).toBe('3')
+        })
+      })
+
+      it('should result in expr3 when expr1 fails', () => {
+        const prg = `
+procedure main()
+  writes(if 1 > 2 then 3 else 4)
+end`
+        return testProgram(prg).then(({ stdout }) => {
+          expect(stdout).toBe('4')
+        })
+      })
+
+      it('should result in failure when expr1 fails and expr3 is omitted', () => {
+        const prg = `
+procedure main()
+  writes(if 1 > 2 then 3)
+end`
+        return testProgram(prg).then(({ stdout }) => {
+          expect(stdout).toBe('')
+        })
+      })
+    })
+
+    test('while/do', () => {
+      const prg = `
+procedure main()
+  x := 0
+  while x < 5 do
+    x := x + 1
+  writes(x)
+end`
+      return testProgram(prg).then(({ stdout }) => {
+        expect(stdout).toBe('5')
+      })
+    })
+  })
+
   describe('functions', () => {
+    test('repl', () => {
+      return testExprs([
+        { input: 'repl("x", 5)', expected: 'xxxxx' }
+      ])
+    })
+
     test('type', () => {
       return testExprs([
         { input: 'type(1)', expected: 'integer' },

@@ -232,7 +232,6 @@ ${errorContext}
       }
       read()
     }
-    // TODO: handle other number bases
     if (prevState === NUM_INTEGER) {
       return createToken('Integer', t => parseInt(t, 10))
     } else if (prevState === NUM_WITH_DEC || prevState === NUM_WITH_EXP) {
@@ -287,10 +286,14 @@ ${errorContext}
     start = current
     const ch = read()
     switch (ch) {
-      case '\n':
+      case '\n': {
+        // TODO: need to return newline tokens in order to get ASI to work
+        // const token = createToken('LineTerminator')
         line += 1
         col = 0
+        // return token
         return nextToken()
+      }
 
       case '(': return createToken('LParen')
       case ')': return createToken('RParen')

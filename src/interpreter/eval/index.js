@@ -27,6 +27,15 @@ const evalProcedure = ({ env, evaluate }) => ({
   }
 })
 
+const evalCompound = ({ evaluate }) => ({
+  CompoundExpression: (node) => {
+    return node.expressions.reduce(
+      (acc, expr) => acc.then((r) => evaluate(expr)),
+      Promise.resolve(Success(new Type.IconNull()))
+    )
+  }
+})
+
 const evalCall = ({ env, evaluate }) => ({
   Call: (node, result) => {
     // Calls cascade. If the result of the previous call was a failure, don't even run.
@@ -97,9 +106,17 @@ const evalBinaryOp = ({ env, evaluate }) => ({
         if (rres.isFailure) { return rres }
         switch (node.operator.type) {
           case 'ColonEq':
-            // TODO: Handle special assignment cases
-            env.scope.define(node.left.name, rres.value)
-            return rres
+            if (node.left.type === 'Identifier') {
+              env.scope.define(node.left.name, rres.value)
+              return rres
+            } else if (node.left.type === 'Subscript' && node.left.subscripts.length === 1) {
+              const str = env.scope.lookup(node.left.callee.name)
+              const pos = node.left.subscripts[0].value
+              str.update(pos, rres.value.value)
+              return Success(str)
+            } else {
+              throw new Error('Unimplemented assignment')
+            }
 
           case 'Caret':
             return Type.toNumbers([lres.value, rres.value])
@@ -193,13 +210,23 @@ const evalBinaryOp = ({ env, evaluate }) => ({
 })
 
 const evalControlStructs = ({ evaluate }) => ({
+  IfThenExpression: (node) => {
+    return evaluate(node.expr1).then((res) => {
+      return res.cata({
+        Failure: () => (node.expr3 ? evaluate(node.expr3) : res),
+        Success: () => evaluate(node.expr2)
+      })
+    })
+  },
   WhileExpression: (node) => {
     function evalWhile () {
       return evaluate(node.expr1).then((expr1Res) => {
         return expr1Res.cata({
           Failure: () => Success() /* FIXME ??? */,
           Success: () => {
-            return evaluate(node.expr2).then(() => evalWhile())
+            return node.expr2
+              ? evaluate(node.expr2).then(() => evalWhile())
+              : evalWhile()
           }
         })
       })
@@ -234,6 +261,7 @@ module.exports = function (options) {
     visitor,
     evalProgram(opts),
     evalProcedure(opts),
+    evalCompound(opts),
     evalCall(opts),
     evalSubscript(opts),
     evalUnaryOp(opts),

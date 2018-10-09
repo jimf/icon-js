@@ -103,15 +103,25 @@ IconReal.prototype.toString = function toString () {
   return res.includes('.') ? res : res + '.0'
 }
 
+const stringPosToIndex = (pos, len) => {
+  let idx = pos - 1
+  if (pos <= 0) { idx = len - 1 + pos }
+  return (idx < 0 || idx >= len) ? null : idx
+}
 IconString.prototype.size = function size () {
   return this.value.length
 }
 IconString.prototype.subscript = function subscript (pos) {
-  let idx = pos - 1
-  if (pos <= 0) { idx = this.value.length - 1 + pos }
-  return (idx < 0 || idx >= this.value.length)
+  const idx = stringPosToIndex(pos, this.value.length)
+  return idx === null
     ? Failure('string subscript out of bounds')
     : Success(new IconString(this.value.charAt(idx)))
+}
+IconString.prototype.update = function update (pos, value) {
+  const idx = stringPosToIndex(pos, this.value.length)
+  if (idx === null) { return Failure('string subscript out of bounds') }
+  this.value = this.value.slice(0, idx) + value + this.value.slice(idx + 1)
+  return Success(this)
 }
 
 function toInteger (value) {

@@ -1,4 +1,6 @@
 const { notImplemented } = require('./util')
+const { Success } = require('../result')
+const Type = require('../types')
 
 module.exports = function (env) {
   return {
@@ -91,7 +93,11 @@ module.exports = function (env) {
      *
      * (s, n)
      */
-    repl: notImplemented('repl'),
+    repl (s, n) {
+      return Success(st => nt =>
+        new Type.IconString((new Array(nt.value)).fill(st.value).join(''))
+      ).ap(Type.toString(s)).ap(Type.toInteger(n))
+    },
 
     /**
      * Reverse string

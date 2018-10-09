@@ -73,7 +73,7 @@ ${errorContext}
       }
       expect(match('RBrace'), 'closing "}" after expression list')
       return {
-        type: 'Block',
+        type: 'CompoundExpression',
         expressions: exprs
       }
     } else if (match('LBracket')) {
@@ -291,15 +291,32 @@ ${errorContext}
   }
 
   function expression () {
-    if (match('ReservedWord', 'while')) {
-      const expr1 = assignment()
+    if (match('ReservedWord', 'break')) {
+      return {
+        type: 'BreakExpression',
+        expression: expression() || null
+      }
+    } else if (match('ReservedWord', 'if')) {
+      const expr1 = expression()
+      expect(match('ReservedWord', 'then'), '"then" keyword')
+      const expr2 = expression()
+      let expr3 = null
+      if (match('ReservedWord', 'else')) {
+        expr3 = expression()
+      }
+      return { type: 'IfThenExpression', expr1, expr2, expr3 }
+    } else if (match('ReservedWord', 'while')) {
+      const expr1 = expression()
       let expr2 = null
       if (match('ReservedWord', 'do')) {
-        expr2 = assignment()
+        expr2 = expression()
       }
       return { type: 'WhileExpression', expr1, expr2 }
     }
-    return assignment()
+    const expr = assignment()
+    // TODO: Figure out what needs to be done with semicolons
+    // match('Semicolon')
+    return expr
   }
 
   function argList () {
