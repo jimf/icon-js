@@ -161,6 +161,20 @@ end`
       })
     })
 
+    describe('not', () => {
+      it('should result in Success(&null) when expression fails', () => {
+        return testExprs([
+          { input: 'if not (1 > 2) then "ok"', expected: 'ok' }
+        ])
+      })
+
+      it('should result in Failure when expression succeeds', () => {
+        return testExprs([
+          { input: 'if not (1 < 2) then "ok"', expected: '' }
+        ])
+      })
+    })
+
     test('while/do', () => {
       const prg = `
 procedure main()
@@ -336,6 +350,13 @@ end`
         { input: '"c" ~== "b"', expected: 'b' },
         { input: '"b" ~== "b"', expected: '' },
         { input: '"a" ~== "b"', expected: 'b' }
+      ])
+    })
+
+    it('should interpret expression conjunction', () => {
+      return testExprs([
+        { input: '1 & 2', expected: '2' },
+        { input: '0 & 2 < 4', expected: '4' }
       ])
     })
   })

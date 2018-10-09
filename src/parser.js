@@ -125,7 +125,12 @@ ${errorContext}
   }
 
   function unary () {
-    if (
+    if (match('ReservedWord', 'not')) {
+      return {
+        type: 'NotExpression',
+        expression: unary()
+      }
+    } else if (
       match('Minus') ||
       match('Plus') ||
       match('Star')
@@ -290,11 +295,28 @@ ${errorContext}
     return expr
   }
 
+  function conjunction () {
+    const expr = assignment()
+    if (match('Amp')) {
+      const operator = previous()
+      const right = assignment()
+      return {
+        type: 'BinaryOp',
+        operator,
+        left: expr,
+        right
+      }
+    }
+    return expr
+  }
+
   function expression () {
     if (match('ReservedWord', 'break')) {
       return {
         type: 'BreakExpression',
-        expression: expression() || null
+        // TODO: need to parse an optional expression here, but this is probably
+        // better left to after ASI is working correctly.
+        expression: null
       }
     } else if (match('ReservedWord', 'if')) {
       const expr1 = expression()
@@ -305,6 +327,8 @@ ${errorContext}
         expr3 = expression()
       }
       return { type: 'IfThenExpression', expr1, expr2, expr3 }
+    } else if (match('ReservedWord', 'next')) {
+      return { type: 'NextExpression' }
     } else if (match('ReservedWord', 'while')) {
       const expr1 = expression()
       let expr2 = null
@@ -313,7 +337,7 @@ ${errorContext}
       }
       return { type: 'WhileExpression', expr1, expr2 }
     }
-    const expr = assignment()
+    const expr = conjunction()
     // TODO: Figure out what needs to be done with semicolons
     // match('Semicolon')
     return expr

@@ -105,6 +105,9 @@ const evalBinaryOp = ({ env, evaluate }) => ({
         if (lres.isFailure) { return lres }
         if (rres.isFailure) { return rres }
         switch (node.operator.type) {
+          case 'Amp':
+            return rres
+
           case 'ColonEq':
             if (node.left.type === 'Identifier') {
               env.scope.define(node.left.name, rres.value)
@@ -209,6 +212,8 @@ const evalBinaryOp = ({ env, evaluate }) => ({
     })
 })
 
+const BREAK_ERROR = '$$INTERNAL_BREAK$$'
+const NEXT_ERROR = '$$INTERNAL_NEXT$$'
 const evalControlStructs = ({ evaluate }) => ({
   IfThenExpression: (node) => {
     return evaluate(node.expr1).then((res) => {
@@ -218,20 +223,44 @@ const evalControlStructs = ({ evaluate }) => ({
       })
     })
   },
+  NotExpression: (node) => {
+    return evaluate(node.expression).then((res) => {
+      return res.cata({
+        Failure: () => Success(new Type.IconNull()),
+        Success: () => Failure()
+      })
+    })
+  },
   WhileExpression: (node) => {
+    function evalWhileBody () {
+      return evaluate(node.expr2)
+        .then(() => evalWhile())
+        .catch((err) => {
+          if (err.message === BREAK_ERROR) {
+            // TODO: Is this the correct result?
+            return Success(new Type.IconNull())
+          } else if (err.message === NEXT_ERROR) {
+            return evalWhile()
+          } else {
+            throw err
+          }
+        })
+    }
     function evalWhile () {
       return evaluate(node.expr1).then((expr1Res) => {
         return expr1Res.cata({
           Failure: () => Success() /* FIXME ??? */,
-          Success: () => {
-            return node.expr2
-              ? evaluate(node.expr2).then(() => evalWhile())
-              : evalWhile()
-          }
+          Success: () => node.expr2 ? evalWhileBody() : evalWhile()
         })
       })
     }
     return evalWhile()
+  },
+  BreakExpression: () => {
+    throw new Error(BREAK_ERROR)
+  },
+  NextExpression: () => {
+    throw new Error(NEXT_ERROR)
   }
 })
 
