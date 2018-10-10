@@ -444,6 +444,64 @@ end`
     })
   })
 
+  describe('procedures', () => {
+    it('should fail when control flow reaches end of procedure without returning', () => {
+      return testProgram(`
+procedure f()
+end
+
+procedure main()
+    writes(f() & "ok")
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('')
+      })
+    })
+
+    it('should return &null if no value is specified in return expression', () => {
+      return testProgram(`
+procedure f()
+  write("f called")
+  return
+end
+
+procedure main()
+    write(/f() & "ok")
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('f called\nok\n')
+      })
+    })
+
+    it('should return result of return expression', () => {
+      return testProgram(`
+procedure f()
+  return "f result"
+end
+
+procedure main()
+    write(f())
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('f result\n')
+      })
+    })
+
+    it('should process arguments', () => {
+      return testProgram(`
+procedure add(x, y)
+  return x + y
+end
+
+procedure main()
+    write(add(3, 8))
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('11\n')
+      })
+    })
+  })
+
   describe('variables', () => {
     it('should initialize with null value', () => {
       return testExprs([

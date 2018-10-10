@@ -1,32 +1,11 @@
 const { Success, Failure } = require('../result')
 const Type = require('../types')
-
-const evalNodeArray = (evaluate, nodes) =>
-  nodes.reduce((acc, expr) =>
-    acc.then((valsResult) =>
-      evaluate(expr).then((vres) =>
-        Success(vs => v => [...vs, v]).ap(valsResult).ap(vres))),
-  Promise.resolve(Success([])))
+const evalControlFlow = require('./control_flow')
+const { evalNodeArray } = require('./util')
 
 const evalProgram = ({ evaluate }) => ({
   Program: (node, result) =>
     (node.procedures.main ? evaluate(node.procedures.main) : Promise.resolve())
-})
-
-const evalProcedure = ({ env, evaluate }) => ({
-  Procedure: (node, args) => {
-    env.pushCall(node)
-    node.parameters.forEach((param, idx) => {
-      env.scope.define(param.name, args[idx] ? args[idx] : new Type.IconNull())
-    })
-    return node.body.reduce(
-      (acc, expr) => acc.then((r) => evaluate(expr)),
-      Promise.resolve(Success(new Type.IconNull()))
-    ).then((res) => {
-      env.popCall()
-      return Failure()
-    })
-  }
 })
 
 const evalCompound = ({ evaluate }) => ({
@@ -35,28 +14,6 @@ const evalCompound = ({ evaluate }) => ({
       (acc, expr) => acc.then((r) => evaluate(expr)),
       Promise.resolve(Success(new Type.IconNull()))
     )
-  }
-})
-
-const evalCall = ({ env, evaluate }) => ({
-  Call: (node, result) => {
-    // Calls cascade. If the result of the previous call was a failure, don't even run.
-    if (result && result.isFailure) { return Promise.resolve(result) }
-
-    // Evaluate the args in series, waterfalling the results.
-    return evalNodeArray(evaluate, node.arguments).then((valsResult) => {
-      // If the result of any of the args is a failure, don't run.
-      if (valsResult.isFailure) {
-        return valsResult
-      }
-      const func = env.scope.lookup(node.callee.name)
-      if (func.isFunction) {
-        return func.value(...valsResult.value)
-      } else if (func.isProcedure) {
-        return evaluate(func.value, valsResult.value)
-      }
-      throw new Error(`Unimplemented procedure call to ${node.callee.name}`)
-    })
   }
 })
 
@@ -232,100 +189,6 @@ const evalBinaryOp = ({ env, evaluate }) => ({
     })
 })
 
-const BREAK_ERROR = '$$INTERNAL_BREAK$$'
-const NEXT_ERROR = '$$INTERNAL_NEXT$$'
-const evalControlStructs = ({ evaluate }) => ({
-  IfThenExpression: (node) => {
-    return evaluate(node.expr1).then((res) => {
-      return res.cata({
-        Failure: () => (node.expr3 ? evaluate(node.expr3) : res),
-        Success: () => evaluate(node.expr2)
-      })
-    })
-  },
-  NotExpression: (node) => {
-    return evaluate(node.expression).then((res) => {
-      return res.cata({
-        Failure: () => Success(new Type.IconNull()),
-        Success: () => Failure()
-      })
-    })
-  },
-  RepeatExpression: (node) => {
-    function evalRepeat () {
-      return evaluate(node.expression)
-        .then(() => evalRepeat())
-        .catch((err) => {
-          if (err.message === BREAK_ERROR) {
-            // TODO: Is this the correct result?
-            return Success(new Type.IconNull())
-          } else if (err.message === NEXT_ERROR) {
-            return evalRepeat()
-          } else {
-            throw err
-          }
-        })
-    }
-    return evalRepeat()
-  },
-  UntilExpression: (node) => {
-    function evalUntilBody () {
-      return evaluate(node.expr2)
-        .then(() => evalUntil())
-        .catch((err) => {
-          if (err.message === BREAK_ERROR) {
-            // TODO: Is this the correct result?
-            return Success(new Type.IconNull())
-          } else if (err.message === NEXT_ERROR) {
-            return evalUntil()
-          } else {
-            throw err
-          }
-        })
-    }
-    function evalUntil () {
-      return evaluate(node.expr1).then((expr1Res) => {
-        return expr1Res.cata({
-          Success: () => Success() /* FIXME ??? */,
-          Failure: () => node.expr2 ? evalUntilBody() : evalUntil()
-        })
-      })
-    }
-    return evalUntil()
-  },
-  WhileExpression: (node) => {
-    function evalWhileBody () {
-      return evaluate(node.expr2)
-        .then(() => evalWhile())
-        .catch((err) => {
-          if (err.message === BREAK_ERROR) {
-            // TODO: Is this the correct result?
-            return Success(new Type.IconNull())
-          } else if (err.message === NEXT_ERROR) {
-            return evalWhile()
-          } else {
-            throw err
-          }
-        })
-    }
-    function evalWhile () {
-      return evaluate(node.expr1).then((expr1Res) => {
-        return expr1Res.cata({
-          Failure: () => Success() /* FIXME ??? */,
-          Success: () => node.expr2 ? evalWhileBody() : evalWhile()
-        })
-      })
-    }
-    return evalWhile()
-  },
-  BreakExpression: () => {
-    throw new Error(BREAK_ERROR)
-  },
-  NextExpression: () => {
-    throw new Error(NEXT_ERROR)
-  }
-})
-
 const evalPrimaryTypes = ({ env, evaluate }) => ({
   Cset: node => Promise.resolve(Success(new Type.IconCset(node.value))),
   Grouping: node => evaluate(node.expression),
@@ -351,13 +214,11 @@ module.exports = function (options) {
   Object.assign(
     visitor,
     evalProgram(opts),
-    evalProcedure(opts),
     evalCompound(opts),
-    evalCall(opts),
     evalSubscript(opts),
     evalUnaryOp(opts),
     evalBinaryOp(opts),
-    evalControlStructs(opts),
+    evalControlFlow(opts),
     evalPrimaryTypes(opts)
   )
 

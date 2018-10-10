@@ -35,17 +35,15 @@ ${errorContext}
     return previous()
   }
 
-  function match (type, lexeme) {
+  function check (type, lexeme) {
     const token = peek()
-    if (!token || token.type !== type || (lexeme !== undefined && token.lexeme !== lexeme)) {
-      return false
-    }
-    advance()
-    return true
+    return !!token && token.type === type && (lexeme === undefined || token.lexeme === lexeme)
   }
 
-  function check (type) {
-    return !isAtEnd() && peek().type === type
+  function match (type, lexeme) {
+    if (!check(type, lexeme)) { return false }
+    advance()
+    return true
   }
 
   function primary () {
@@ -335,6 +333,12 @@ ${errorContext}
       return {
         type: 'RepeatExpression',
         expression: expression()
+      }
+    } else if (match('ReservedWord', 'return')) {
+      const expr = check('ReservedWord', 'end') ? null : expression()
+      return {
+        type: 'ReturnExpression',
+        expression: expr
       }
     } else if (match('ReservedWord', 'until')) {
       const expr1 = expression()
