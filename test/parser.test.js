@@ -7,7 +7,7 @@ describe('Parser', () => {
     expect(parse(input)).toEqual({
       type: 'Program',
       procedures: {
-        main: { type: 'Procedure', name: 'main', arguments: [], body: [] }
+        main: { type: 'Procedure', name: 'main', parameters: [], body: [] }
       }
     })
   })

@@ -60,7 +60,7 @@ module.exports = function (env) {
      *
      * @param {*} x Variable
      */
-    integer: notImplemented('integer'),
+    integer: Type.toInteger,
 
     /**
      * List of n elements equal to x
@@ -83,7 +83,7 @@ module.exports = function (env) {
      *
      * @param {*} x Variable
      */
-    numeric: notImplemented('numeric'),
+    numeric: Type.toNumber,
 
     /**
      * Ordinal of 1-character strings
@@ -127,7 +127,7 @@ module.exports = function (env) {
      *
      * @param {*} x Variable
      */
-    real: notImplemented('real'),
+    real: Type.toReal,
 
     /**
      * Infinite sequence: i; i + j; i + 2j; : : :
@@ -170,7 +170,7 @@ module.exports = function (env) {
      *
      * @param {*} x Variable
      */
-    string: notImplemented('string'),
+    string: Type.toString,
 
     /**
      * New table with initial value x

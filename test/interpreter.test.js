@@ -175,6 +175,35 @@ end`
       })
     })
 
+    test('repeat', () => {
+      const prg = `
+procedure main()
+  x := 0
+  repeat {
+    write(x);
+    x := x + 1;
+    if x = 5 then
+      break
+  }
+end`
+      return testProgram(prg).then(({ stdout }) => {
+        expect(stdout).toBe('0\n1\n2\n3\n4\n')
+      })
+    })
+
+    test('until/do', () => {
+      const prg = `
+procedure main()
+  x := 0
+  until x >= 5 do
+    x := x + 1
+  writes(x)
+end`
+      return testProgram(prg).then(({ stdout }) => {
+        expect(stdout).toBe('5')
+      })
+    })
+
     test('while/do', () => {
       const prg = `
 procedure main()
@@ -190,9 +219,37 @@ end`
   })
 
   describe('functions', () => {
+    test('integer', () => {
+      return testExprs([
+        { input: 'integer("12")', expected: '12' },
+        { input: 'integer(.01)', expected: '0' }
+      ])
+    })
+
+    test('numeric', () => {
+      return testExprs([
+        { input: 'numeric("12")', expected: '12' },
+        { input: 'numeric("12.0")', expected: '12.0' }
+      ])
+    })
+
+    test('real', () => {
+      return testExprs([
+        { input: 'real("12")', expected: '12.0' },
+        { input: 'real("xx")', expected: '' }
+      ])
+    })
+
     test('repl', () => {
       return testExprs([
         { input: 'repl("x", 5)', expected: 'xxxxx' }
+      ])
+    })
+
+    test('string', () => {
+      return testExprs([
+        { input: 'string(2^32)', expected: '4294967296' },
+        { input: 'string(234.567e-5)', expected: '0.00234567' }
       ])
     })
 
@@ -280,6 +337,20 @@ end`
       ])
     })
 
+    it('should interpret unary / (is-null)', () => {
+      return testExprs([
+        { input: '/&null & "ok"', expected: 'ok' },
+        { input: '/1 & "ok"', expected: '' }
+      ])
+    })
+
+    it('should interpret unary \\ (is-not-null)', () => {
+      return testExprs([
+        { input: '\\&null & "ok"', expected: '' },
+        { input: '\\1 & "ok"', expected: 'ok' }
+      ])
+    })
+
     it('should interpret exponentiation', () => {
       return testExprs([
         { input: '2 ^ 3', expected: '8' },
@@ -326,7 +397,9 @@ end`
         { input: '2 ~= 1', expected: '1' },
         { input: '1 ~= 1', expected: '' },
         { input: '0 ~= 1', expected: '1' },
-        { input: '1 + 2 < 3 * 4 > 5', expected: '5' }
+        { input: '1 + 2 < 3 * 4 > 5', expected: '5' },
+        { input: '"01" = "1"', expected: '1' },
+        { input: '"01" < "1"', expected: '' }
       ])
     })
 
@@ -349,7 +422,17 @@ end`
         { input: '"a" >>= "b"', expected: '' },
         { input: '"c" ~== "b"', expected: 'b' },
         { input: '"b" ~== "b"', expected: '' },
-        { input: '"a" ~== "b"', expected: 'b' }
+        { input: '"a" ~== "b"', expected: 'b' },
+        { input: '"01" == "1"', expected: '' },
+        { input: '"01" << "1"', expected: '1' }
+      ])
+    })
+
+    it('should interpret strict equality', () => {
+      return testExprs([
+        { input: '2 === "2"', expected: '' },
+        { input: '2 ~=== "2"', expected: '2' },
+        { input: '"xyz" === "x" || "y" || "z"', expected: 'xyz' }
       ])
     })
 

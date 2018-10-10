@@ -131,9 +131,11 @@ ${errorContext}
         expression: unary()
       }
     } else if (
-      match('Minus') ||
+      match('Star') ||
       match('Plus') ||
-      match('Star')
+      match('Minus') ||
+      match('Slash') ||
+      match('Backslash')
     ) {
       const op = previous()
       const right = unary()
@@ -329,6 +331,18 @@ ${errorContext}
       return { type: 'IfThenExpression', expr1, expr2, expr3 }
     } else if (match('ReservedWord', 'next')) {
       return { type: 'NextExpression' }
+    } else if (match('ReservedWord', 'repeat')) {
+      return {
+        type: 'RepeatExpression',
+        expression: expression()
+      }
+    } else if (match('ReservedWord', 'until')) {
+      const expr1 = expression()
+      let expr2 = null
+      if (match('ReservedWord', 'do')) {
+        expr2 = expression()
+      }
+      return { type: 'UntilExpression', expr1, expr2 }
     } else if (match('ReservedWord', 'while')) {
       const expr1 = expression()
       let expr2 = null
@@ -345,15 +359,21 @@ ${errorContext}
 
   function argList () {
     expect(match('LParen'), '"("')
-    expect(match('RParen'), '")"')
-    return []
+    const args = []
+    if (!check('RParen')) {
+      do {
+        args.push(expression())
+      } while (match('Comma'))
+    }
+    expect(match('RParen'), 'closing ")" after procedure parameters')
+    return args
   }
 
   function procedure () {
     if (!match('ReservedWord', 'procedure')) { return false }
     const name = peek()
     expect(match('Identifier'), 'an identifier')
-    const args = argList()
+    const params = argList()
     const body = []
     while (!match('ReservedWord', 'end')) {
       body.push(expression())
@@ -361,7 +381,7 @@ ${errorContext}
     return {
       type: 'Procedure',
       name: name.lexeme,
-      arguments: args,
+      parameters: params,
       body
     }
   }

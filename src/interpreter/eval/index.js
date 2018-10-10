@@ -1,5 +1,4 @@
 const { Success, Failure } = require('../result')
-const Scope = require('../scope')
 const Type = require('../types')
 
 const evalNodeArray = (evaluate, nodes) =>
@@ -15,14 +14,17 @@ const evalProgram = ({ evaluate }) => ({
 })
 
 const evalProcedure = ({ env, evaluate }) => ({
-  Procedure: (node, result) => {
-    env.scope = Scope(env.scope)
+  Procedure: (node, args) => {
+    env.pushCall(node)
+    node.parameters.forEach((param, idx) => {
+      env.scope.define(param.name, args[idx] ? args[idx] : new Type.IconNull())
+    })
     return node.body.reduce(
       (acc, expr) => acc.then((r) => evaluate(expr)),
       Promise.resolve(Success(new Type.IconNull()))
     ).then((res) => {
-      env.scope = env.scope.pop()
-      return res
+      env.popCall()
+      return Failure()
     })
   }
 })
@@ -50,6 +52,8 @@ const evalCall = ({ env, evaluate }) => ({
       const func = env.scope.lookup(node.callee.name)
       if (func.isFunction) {
         return func.value(...valsResult.value)
+      } else if (func.isProcedure) {
+        return evaluate(func.value, valsResult.value)
       }
       throw new Error(`Unimplemented procedure call to ${node.callee.name}`)
     })
@@ -81,11 +85,17 @@ const evalUnaryOp = ({ env, evaluate }) => ({
     evaluate(node.right).then((rres) => {
       if (rres.isFailure) { return rres }
       switch (node.operator.type) {
+        case 'Backslash':
+          return rres.chain(v => (!v.isNull ? Success(v) : Failure()))
+
         case 'Minus':
           return rres.chain(Type.toNumber).map(rval => rval.map(v => -v))
 
         case 'Plus':
           return rres.chain(Type.toNumber)
+
+        case 'Slash':
+          return rres.chain(v => (v.isNull ? Success(v) : Failure()))
 
         case 'Star':
           return rres.chain(t => t.size
@@ -132,6 +142,11 @@ const evalBinaryOp = ({ env, evaluate }) => ({
           case 'EqEq':
             return Type.tryCoerceAll([lres.value, rres.value], Type.toString)
               .chain(([left, right]) => left.equals(right) ? Success(right) : Failure())
+
+          case 'EqEqEq':
+            return lres.value.type === rres.value.type && lres.value.equals(rres.value)
+              ? rres
+              : Failure()
 
           case 'Greater':
             return Type.toNumbers([lres.value, rres.value])
@@ -206,6 +221,11 @@ const evalBinaryOp = ({ env, evaluate }) => ({
             return Type.tryCoerceAll([lres.value, rres.value], Type.toString)
               .chain(([left, right]) => !left.equals(right) ? Success(right) : Failure())
 
+          case 'TildeEqEqEq':
+            return !(lres.value.type === rres.value.type && lres.value.equals(rres.value))
+              ? rres
+              : Failure()
+
           default: throw new Error(`Unimplemented binary op: ${node.operator.type}`)
         }
       })
@@ -230,6 +250,48 @@ const evalControlStructs = ({ evaluate }) => ({
         Success: () => Failure()
       })
     })
+  },
+  RepeatExpression: (node) => {
+    function evalRepeat () {
+      return evaluate(node.expression)
+        .then(() => evalRepeat())
+        .catch((err) => {
+          if (err.message === BREAK_ERROR) {
+            // TODO: Is this the correct result?
+            return Success(new Type.IconNull())
+          } else if (err.message === NEXT_ERROR) {
+            return evalRepeat()
+          } else {
+            throw err
+          }
+        })
+    }
+    return evalRepeat()
+  },
+  UntilExpression: (node) => {
+    function evalUntilBody () {
+      return evaluate(node.expr2)
+        .then(() => evalUntil())
+        .catch((err) => {
+          if (err.message === BREAK_ERROR) {
+            // TODO: Is this the correct result?
+            return Success(new Type.IconNull())
+          } else if (err.message === NEXT_ERROR) {
+            return evalUntil()
+          } else {
+            throw err
+          }
+        })
+    }
+    function evalUntil () {
+      return evaluate(node.expr1).then((expr1Res) => {
+        return expr1Res.cata({
+          Success: () => Success() /* FIXME ??? */,
+          Failure: () => node.expr2 ? evalUntilBody() : evalUntil()
+        })
+      })
+    }
+    return evalUntil()
   },
   WhileExpression: (node) => {
     function evalWhileBody () {
