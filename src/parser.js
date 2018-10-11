@@ -66,7 +66,7 @@ ${errorContext}
       const exprs = []
       if (!check('RBrace')) {
         do {
-          exprs.push(expression())
+          exprs.push(expression(true))
         } while (match('Semicolon'))
       }
       expect(match('RBrace'), 'closing "}" after expression list')
@@ -96,7 +96,7 @@ ${errorContext}
       const args = []
       if (!check('RParen')) {
         do {
-          args.push(expression())
+          args.push((check('Comma') || check('RParen')) ? null : expression())
         } while (match('Comma'))
       }
       expect(match('RParen'), 'closing ")" after function arguments')
@@ -310,9 +310,10 @@ ${errorContext}
     return expr
   }
 
-  function expression () {
+  function expression (skipSemi) {
+    let node
     if (match('ReservedWord', 'break')) {
-      return {
+      node = {
         type: 'BreakExpression',
         // TODO: need to parse an optional expression here, but this is probably
         // better left to after ASI is working correctly.
@@ -326,17 +327,19 @@ ${errorContext}
       if (match('ReservedWord', 'else')) {
         expr3 = expression()
       }
-      return { type: 'IfThenExpression', expr1, expr2, expr3 }
+      node = { type: 'IfThenExpression', expr1, expr2, expr3 }
+    } else if (match('ReservedWord', 'fail')) {
+      node = { type: 'FailExpression' }
     } else if (match('ReservedWord', 'next')) {
-      return { type: 'NextExpression' }
+      node = { type: 'NextExpression' }
     } else if (match('ReservedWord', 'repeat')) {
-      return {
+      node = {
         type: 'RepeatExpression',
         expression: expression()
       }
     } else if (match('ReservedWord', 'return')) {
       const expr = check('ReservedWord', 'end') ? null : expression()
-      return {
+      node = {
         type: 'ReturnExpression',
         expression: expr
       }
@@ -346,38 +349,42 @@ ${errorContext}
       if (match('ReservedWord', 'do')) {
         expr2 = expression()
       }
-      return { type: 'UntilExpression', expr1, expr2 }
+      node = { type: 'UntilExpression', expr1, expr2 }
     } else if (match('ReservedWord', 'while')) {
       const expr1 = expression()
       let expr2 = null
       if (match('ReservedWord', 'do')) {
         expr2 = expression()
       }
-      return { type: 'WhileExpression', expr1, expr2 }
+      node = { type: 'WhileExpression', expr1, expr2 }
+    } else {
+      node = conjunction()
     }
-    const expr = conjunction()
-    // TODO: Figure out what needs to be done with semicolons
-    // match('Semicolon')
-    return expr
+    if (!skipSemi) {
+      // Swallow optional semicolon, except when dealing with expression lists.
+      // TODO: revisit with ASI handling
+      match('Semicolon')
+    }
+    return node
   }
 
-  function argList () {
+  function paramList () {
     expect(match('LParen'), '"("')
-    const args = []
+    const params = []
     if (!check('RParen')) {
       do {
-        args.push(expression())
+        params.push(expression())
       } while (match('Comma'))
     }
     expect(match('RParen'), 'closing ")" after procedure parameters')
-    return args
+    return params
   }
 
   function procedure () {
     if (!match('ReservedWord', 'procedure')) { return false }
     const name = peek()
     expect(match('Identifier'), 'an identifier')
-    const params = argList()
+    const params = paramList()
     const body = []
     while (!match('ReservedWord', 'end')) {
       body.push(expression())
@@ -390,23 +397,38 @@ ${errorContext}
     }
   }
 
-  function procedures () {
+  function global () {
     const result = []
-    let next = procedure()
-    while (next) {
-      result.push(next)
-      next = procedure()
-    }
+    match('ReservedWord', 'global')
+    do {
+      const id = peek()
+      expect(match('Identifier'), 'an identifier')
+      result.push(id.name)
+    } while (match('Comma'))
     return result
   }
 
   function program () {
+    const procedures = []
+    const globals = []
+    while (true) {
+      if (check('ReservedWord', 'procedure')) {
+        procedures.push(procedure())
+      } else if (check('ReservedWord', 'global')) {
+        global().forEach((g) => {
+          globals.push(g)
+        })
+      } else {
+        break
+      }
+    }
     return {
       type: 'Program',
-      procedures: procedures().reduce((acc, proc) => {
+      procedures: procedures.reduce((acc, proc) => {
         acc[proc.name] = proc
         return acc
-      }, {})
+      }, {}),
+      globals
     }
   }
 

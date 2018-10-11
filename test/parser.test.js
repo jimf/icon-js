@@ -8,7 +8,8 @@ describe('Parser', () => {
       type: 'Program',
       procedures: {
         main: { type: 'Procedure', name: 'main', parameters: [], body: [] }
-      }
+      },
+      globals: []
     })
   })
 

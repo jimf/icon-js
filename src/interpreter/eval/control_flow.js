@@ -8,6 +8,12 @@ class Break extends Error {
   }
 }
 
+class Fail extends Error {
+  constructor () {
+    super('$$INTERNAL_FAIL$$')
+  }
+}
+
 class Next extends Error {
   constructor () {
     super('$$INTERNAL_NEXT$$')
@@ -25,7 +31,7 @@ module.exports = ({ env, evaluate }) => ({
   Procedure: (node, args) => {
     env.pushCall(node)
     node.parameters.forEach((param, idx) => {
-      env.scope.define(param.name, args[idx] ? args[idx] : new Type.IconNull())
+      env.define(param.name, args[idx] ? args[idx] : new Type.IconNull())
     })
     return node.body.reduce(
       (acc, expr) => acc.then((r) => evaluate(expr)),
@@ -36,6 +42,8 @@ module.exports = ({ env, evaluate }) => ({
     }).catch((err) => {
       if (err instanceof Return) {
         return err.value
+      } else if (err instanceof Fail) {
+        return Failure()
       } else {
         throw err
       }
@@ -45,19 +53,28 @@ module.exports = ({ env, evaluate }) => ({
     // Calls cascade. If the result of the previous call was a failure, don't even run.
     if (result && result.isFailure) { return Promise.resolve(result) }
 
+    // Replace null args with &null node.
+    const args = node.arguments.map(arg =>
+      (arg === null ? { type: 'Keyword', name: '&null' } : arg))
+
     // Evaluate the args in series, waterfalling the results.
-    return evalNodeArray(evaluate, node.arguments).then((valsResult) => {
+    return evalNodeArray(evaluate, args).then((valsResult) => {
       // If the result of any of the args is a failure, don't run.
       if (valsResult.isFailure) {
         return valsResult
       }
-      const func = env.scope.lookup(node.callee.name)
+      const func = env.lookup(node.callee.name)
       if (func.isFunction) {
         return func.value(...valsResult.value)
       } else if (func.isProcedure) {
         return evaluate(func.value, valsResult.value)
       }
       throw new Error(`Unimplemented procedure call to ${node.callee.name}`)
+    })
+  },
+  FailExpression: () => {
+    return Promise.resolve().then(() => {
+      throw new Fail()
     })
   },
   IfThenExpression: (node) => {

@@ -32,6 +32,7 @@ IconBase.prototype.toString = function toString () {
 
 function createCtor (type, initialize) {
   const Ctor = function (value) {
+    if (!(this instanceof Ctor)) { return new Ctor(value) }
     IconBase.call(this, type, value)
     if (initialize) {
       initialize(this, value)

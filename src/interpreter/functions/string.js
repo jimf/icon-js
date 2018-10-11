@@ -1,6 +1,14 @@
 const { notImplemented } = require('./util')
 const { Success } = require('../result')
 const Type = require('../types')
+const { repeat } = require('../../util')
+
+const trimRight = (s, c) => {
+  while (s.charAt(s.length - 1) === c) {
+    s = s.slice(0, -1)
+  }
+  return s
+}
 
 module.exports = function (env) {
   return {
@@ -95,7 +103,7 @@ module.exports = function (env) {
      */
     repl (s, n) {
       return Success(st => nt =>
-        new Type.IconString((new Array(nt.value)).fill(st.value).join(''))
+        new Type.IconString(repeat(st.value, nt.value))
       ).ap(Type.toString(s)).ap(Type.toInteger(n))
     },
 
@@ -104,14 +112,24 @@ module.exports = function (env) {
      *
      * (s)
      */
-    reverse: notImplemented('reverse'),
+    reverse (s) {
+      return Success(st => st.map(sv => sv.split('').reverse().join('')))
+        .ap(Type.toString(s))
+    },
 
     /**
      * Flush right s in field of width n, pad p
      *
      * (s, n, p)
      */
-    right: notImplemented('right'),
+    right (s, n = Type.IconInteger(1), p = Type.IconString(' ')) {
+      return Success(st => nt => pt =>
+        Type.IconString(`${repeat(pt.value, nt.value)}${st.value}`.slice(-nt.value))
+      )
+        .ap(Type.toString(s))
+        .ap(Type.toInteger(n))
+        .ap(Type.toString(p))
+    },
 
     /**
      * Set &pos to n, return string from old &pos to there
@@ -125,7 +143,11 @@ module.exports = function (env) {
      *
      * (s, c)
      */
-    trim: notImplemented('trim'),
+    trim (s, c = Type.IconString(' ')) {
+      return Success(st => ct => st.map(sv => trimRight(sv, ct.value)))
+        .ap(Type.toString(s))
+        .ap(Type.toString(c))
+    },
 
     /**
      * Scan s until a character 2 c

@@ -5,7 +5,7 @@ const { evalNodeArray } = require('./util')
 
 const evalProgram = ({ evaluate }) => ({
   Program: (node, result) =>
-    (node.procedures.main ? evaluate(node.procedures.main) : Promise.resolve())
+    (node.procedures.main ? evaluate(node.procedures.main, []) : Promise.resolve())
 })
 
 const evalCompound = ({ evaluate }) => ({
@@ -77,13 +77,23 @@ const evalBinaryOp = ({ env, evaluate }) => ({
 
           case 'ColonEq':
             if (node.left.type === 'Identifier') {
-              env.scope.define(node.left.name, rres.value)
+              // x := _
+              env.define(node.left.name, rres.value)
               return rres
             } else if (node.left.type === 'Subscript' && node.left.subscripts.length === 1) {
-              const str = env.scope.lookup(node.left.callee.name)
+              // x[y] = _
+              const str = env.lookup(node.left.callee.name)
               const pos = node.left.subscripts[0].value
               str.update(pos, rres.value.value)
               return Success(str)
+            } else if (node.left.type === 'UnaryOp' && node.left.operator.type === 'Slash') {
+              // /x := _
+              const current = env.lookup(node.left.right.name)
+              if (current.isNull) {
+                env.define(node.left.right.name, rres.value)
+                return Success(rres.value)
+              }
+              return Failure()
             } else {
               throw new Error('Unimplemented assignment')
             }
@@ -192,9 +202,9 @@ const evalBinaryOp = ({ env, evaluate }) => ({
 const evalPrimaryTypes = ({ env, evaluate }) => ({
   Cset: node => Promise.resolve(Success(new Type.IconCset(node.value))),
   Grouping: node => evaluate(node.expression),
-  Identifier: node => Promise.resolve(Success(env.scope.lookup(node.name))),
+  Identifier: node => Promise.resolve(Success(env.lookup(node.name))),
   Integer: node => Promise.resolve(Success(new Type.IconInteger(node.value))),
-  Keyword: node => Promise.resolve(Success(env.scope.lookup(node.name))),
+  Keyword: node => Promise.resolve(Success(env.lookup(node.name))),
   List: node => Promise.resolve(Success(new Type.IconList(node.value))),
   Real: node => Promise.resolve(Success(new Type.IconReal(node.value))),
   String: node => Promise.resolve(Success(new Type.IconString(node.value)))

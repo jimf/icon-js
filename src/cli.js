@@ -40,6 +40,7 @@ module.exports = (argv, options) => {
     const icon = Icon(source, options)
     return icon.run()
   }).catch((err) => {
+    console.log(err)
     options.writeStderr((err.message || err) + '\n')
     throw err
   })

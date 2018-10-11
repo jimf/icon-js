@@ -222,21 +222,24 @@ end`
     test('integer', () => {
       return testExprs([
         { input: 'integer("12")', expected: '12' },
-        { input: 'integer(.01)', expected: '0' }
+        { input: 'integer(.01)', expected: '0' },
+        { input: 'integer(&null)', expected: '' }
       ])
     })
 
     test('numeric', () => {
       return testExprs([
         { input: 'numeric("12")', expected: '12' },
-        { input: 'numeric("12.0")', expected: '12.0' }
+        { input: 'numeric("12.0")', expected: '12.0' },
+        { input: 'numeric(&null)', expected: '' }
       ])
     })
 
     test('real', () => {
       return testExprs([
         { input: 'real("12")', expected: '12.0' },
-        { input: 'real("xx")', expected: '' }
+        { input: 'real("xx")', expected: '' },
+        { input: 'real(&null)', expected: '' }
       ])
     })
 
@@ -246,10 +249,30 @@ end`
       ])
     })
 
+    test('reverse', () => {
+      return testExprs([
+        { input: 'reverse("hello")', expected: 'olleh' }
+      ])
+    })
+
+    test('right', () => {
+      return testExprs([
+        { input: 'right(35, 10, ".")', expected: '........35' },
+        { input: 'right(35, 10)', expected: '        35' }
+      ])
+    })
+
     test('string', () => {
       return testExprs([
         { input: 'string(2^32)', expected: '4294967296' },
-        { input: 'string(234.567e-5)', expected: '0.00234567' }
+        { input: 'string(234.567e-5)', expected: '0.00234567' },
+        { input: 'string(&null)', expected: '' }
+      ])
+    })
+
+    test('trim', () => {
+      return testExprs([
+        { input: 'trim("just a test   ")', expected: 'just a test' }
       ])
     })
 
@@ -498,6 +521,26 @@ procedure main()
 end
       `).then(({ stdout }) => {
         expect(stdout).toBe('11\n')
+      })
+    })
+
+    it('should fill in omitted arguments with &null', () => {
+      return testProgram(`
+procedure wrap(s, w)
+  /s := "";   # if s is null, set s to ""
+  /w := "()"; # if w is null, set w to "()"
+  return w[1] || s || w[2]
+end
+
+procedure main()
+    write(wrap("x", "[]"))
+    write(wrap("x"))
+    write(wrap(, "{}"))
+    write(wrap(,))
+    write(wrap())
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('[x]\n(x)\n{}\n()\n()\n')
       })
     })
   })

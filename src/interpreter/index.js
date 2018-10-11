@@ -31,13 +31,13 @@ function Icon (input, options) {
   const evaluate = Eval({ env })
 
   Object.keys(functions).forEach((funcName) => {
-    rootScope.define(funcName, new IconFunction(functions[funcName]))
+    rootScope.define(funcName, IconFunction(functions[funcName]))
   })
   Object.keys(keywords).forEach((kw) => {
     rootScope.define(kw, keywords[kw])
   })
   Object.keys(ast.procedures).forEach((procName) => {
-    rootScope.define(procName, new IconProcedure(ast.procedures[procName]))
+    rootScope.define(procName, IconProcedure(ast.procedures[procName]))
   })
 
   function run () {

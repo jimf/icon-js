@@ -1,6 +1,14 @@
 const { notImplemented } = require('./util')
-const { Success } = require('../result')
+const { Success, Failure } = require('../result')
 const Type = require('../types')
+
+const tryOrFail = f => x => {
+  try {
+    return f(x)
+  } catch (err) {
+    return Failure()
+  }
+}
 
 module.exports = function (env) {
   return {
@@ -60,7 +68,7 @@ module.exports = function (env) {
      *
      * @param {*} x Variable
      */
-    integer: Type.toInteger,
+    integer: tryOrFail(Type.toInteger),
 
     /**
      * List of n elements equal to x
@@ -83,7 +91,7 @@ module.exports = function (env) {
      *
      * @param {*} x Variable
      */
-    numeric: Type.toNumber,
+    numeric: tryOrFail(Type.toNumber),
 
     /**
      * Ordinal of 1-character strings
@@ -127,7 +135,7 @@ module.exports = function (env) {
      *
      * @param {*} x Variable
      */
-    real: Type.toReal,
+    real: tryOrFail(Type.toReal),
 
     /**
      * Infinite sequence: i; i + j; i + 2j; : : :
@@ -170,7 +178,7 @@ module.exports = function (env) {
      *
      * @param {*} x Variable
      */
-    string: Type.toString,
+    string: tryOrFail(Type.toString),
 
     /**
      * New table with initial value x
