@@ -545,6 +545,89 @@ end
     })
   })
 
+  describe('scope', () => {
+    test('global', () => {
+      return testProgram(`
+global x, y
+global z
+
+procedure main()
+    x := 1
+    z := "zzz..."
+    f()
+    write("x is ", x)
+end
+
+procedure f()
+    x := 2
+    write(z)
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('zzz...\nx is 2\n')
+      })
+    })
+
+    test('global and local', () => {
+      return testProgram(`
+global x
+
+procedure main()
+    x := 42
+    write(f())
+    write(x)
+end
+
+procedure f()
+    local x
+    x := 3
+    return x
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('3\n42\n')
+      })
+    })
+
+    test('static', () => {
+      return testProgram(`
+procedure last(n)
+    static last_value
+    result := last_value
+    last_value := n
+    return result
+end
+
+procedure main()
+    write(type(last(3)))
+    write(last("abc"))
+    write(last(7.4))
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('null\n3\nabc\n')
+      })
+    })
+
+    test('static with initialize', () => {
+      return testProgram(`
+procedure log(s)
+    static entry_num
+    initial {
+        write("Log initialized");
+        entry_num := 0
+    }
+    write(entry_num +:= 1, ": ", s)
+end
+
+procedure main()
+    log("The first entry");
+    log("Another entry");
+    log("The third entry")
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('Log initialized\n1: The first entry\n2: Another entry\n3: The third entry\n')
+      })
+    })
+  })
+
   describe('variables', () => {
     it('should initialize with null value', () => {
       return testExprs([

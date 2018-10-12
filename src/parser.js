@@ -5,12 +5,12 @@ function parse (input) {
   const tokens = tokenize(input)
   let pos = 0
 
-  function expect (success, expected) {
+  function expect (success, expected, found) {
     if (success) { return }
     const token = tokens[pos]
     const errorContext = formatErrorContext(input, token.line, token.column)
     throw new Error(`Parse error at line ${token.line}, column ${token.column}
-Expected ${expected}, but found "${token.lexeme}"
+Expected ${expected}, but found ${found || '"' + token.lexeme + '"'}
 
 ${errorContext}
 `)
@@ -380,12 +380,49 @@ ${errorContext}
     return params
   }
 
+  function idents (type, known) {
+    do {
+      const id = peek()
+      expect(
+        !known[id.lexeme],
+        'unique identifier declarations',
+        `"${id.lexeme}" to have been redeclared`
+      )
+      expect(match('Identifier'), 'an identifier')
+      known[id.lexeme] = type
+    } while (match('Comma'))
+    return known
+  }
+
   function procedure () {
     if (!match('ReservedWord', 'procedure')) { return false }
     const name = peek()
     expect(match('Identifier'), 'an identifier')
     const params = paramList()
+    const decls = {}
+    while (true) {
+      if (match('ReservedWord', 'local')) {
+        idents('local', decls)
+      } else if (match('ReservedWord', 'static')) {
+        idents('static', decls)
+      } else {
+        break
+      }
+    }
+    const locals = []
+    const statics = []
     const body = []
+    Object.keys(decls).forEach((id) => {
+      if (decls[id] === 'local') {
+        locals.push(id)
+      } else {
+        statics.push(id)
+      }
+    })
+    let initial = null
+    if (match('ReservedWord', 'initial')) {
+      initial = expression()
+    }
     while (!match('ReservedWord', 'end')) {
       body.push(expression())
     }
@@ -393,31 +430,21 @@ ${errorContext}
       type: 'Procedure',
       name: name.lexeme,
       parameters: params,
+      locals,
+      statics,
+      initial,
       body
     }
   }
 
-  function global () {
-    const result = []
-    match('ReservedWord', 'global')
-    do {
-      const id = peek()
-      expect(match('Identifier'), 'an identifier')
-      result.push(id.name)
-    } while (match('Comma'))
-    return result
-  }
-
   function program () {
     const procedures = []
-    const globals = []
+    const globals = {}
     while (true) {
       if (check('ReservedWord', 'procedure')) {
         procedures.push(procedure())
-      } else if (check('ReservedWord', 'global')) {
-        global().forEach((g) => {
-          globals.push(g)
-        })
+      } else if (match('ReservedWord', 'global')) {
+        idents('global', globals)
       } else {
         break
       }
@@ -428,7 +455,7 @@ ${errorContext}
         acc[proc.name] = proc
         return acc
       }, {}),
-      globals
+      globals: Object.keys(globals)
     }
   }
 

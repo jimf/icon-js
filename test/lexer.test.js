@@ -148,7 +148,8 @@ describe('Lexer', () => {
   it('should tokenize strings', () => {
     const cases = [
       { lexeme: '"hello world"', expectedValue: 'hello world' },
-      { lexeme: '"hello\nworld"', expectedValue: 'hello\nworld' },
+      { lexeme: '"hello _\n   world"', expectedValue: 'hello world' },
+      { lexeme: '"hello  _  world"', expectedValue: 'hello  _  world' },
       { lexeme: '"\\n\\012\\x0a\\^j"', expectedValue: '\n\n\n\n' },
       { lexeme: '"A\\x41\\101 Exterminators"', expectedValue: 'AAA Exterminators' }
     ]

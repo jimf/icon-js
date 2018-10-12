@@ -2,29 +2,30 @@ const { IconNull } = require('./types')
 
 function createScope (parent) {
   const symbols = {}
-  const statics = {}
 
-  function define (symbol, value, isStatic = false) {
+  function define (symbol, value) {
     symbols[symbol] = value
-    if (isStatic) {
-      statics[symbol] = true
-    }
     return value
   }
 
+  function has (symbol) {
+    return Object.prototype.hasOwnProperty.call(symbols, symbol)
+  }
+
   function lookup (symbol) {
-    if (Object.prototype.hasOwnProperty.call(symbols, symbol)) {
+    if (has(symbol)) {
       return symbols[symbol]
+    } else if (parent && parent.has(symbol)) {
+      return parent.lookup(symbol)
     }
-    const result = parent && parent.lookup(symbol)
-    return result || define(symbol, new IconNull())
+    return define(symbol, new IconNull())
   }
 
   function pop () {
     return parent
   }
 
-  return { define, lookup, pop }
+  return { define, has, lookup, pop }
 }
 
 module.exports = createScope

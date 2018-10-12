@@ -172,6 +172,19 @@ const evalBinaryOp = ({ env, evaluate }) => ({
             return Type.toNumbers([lres.value, rres.value])
               .map(([left, right]) => left.map(lval => lval + right.value))
 
+          case 'PlusColonEq':
+            if (node.left.type === 'Identifier') {
+              // x +:= _
+              const result = Type.toNumbers([env.lookup(node.left.name), rres.value])
+                .map(([left, right]) => left.map(lval => lval + right.value))
+              if (result.isSuccess) {
+                env.define(node.left.name, result.value)
+              }
+              return result
+            } else {
+              throw new Error('Unimplemented +:=')
+            }
+
           case 'Slash':
             return Type.toNumbers([lres.value, rres.value])
               .map(([left, right]) => left.map(lval => lval / right.value))

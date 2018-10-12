@@ -46,7 +46,7 @@ module.exports = function (env) {
     }),
     '&lcase': new Type.IconCset(lower),
     '&letters': new Type.IconCset(upper + lower),
-    // &level : i                  # level of current procedure call
+    '&level': new Type.IconInteger(env.level.bind(env)),
     // &line : i                   # current source code line number
     // &main : C                   # main co-expression
     // &null : n                   # the null value

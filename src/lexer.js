@@ -264,11 +264,29 @@ ${errorContext}
     return createToken('Amp')
   }
 
+  function skipMultilineWhitespace () {
+    const s = start
+    const c = col
+    const curr = current
+    read()
+    skipWhitespace()
+    if (peek !== '\n') {
+      start = s
+      col = c
+      current = curr
+      return
+    }
+    do {
+      skipWhitespace()
+    } while (match('\n'))
+  }
+
   function scanString (delim) {
     let state = STR_BEGIN
     let value = ''
     let tmp = null
     while (!isAtEnd() && state !== STR_STRING) {
+      if (peek === '_') { skipMultilineWhitespace() }
       const next = parseString(delim, state, read(), value, tmp)
       state = next[0]
       value = next[1]

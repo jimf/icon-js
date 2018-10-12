@@ -48,7 +48,11 @@ const IconCoexpression = createCtor('coexpression')
 const IconFile = createCtor('file')
 const IconFunction = createCtor('function')
 const IconInteger = Ord(createCtor('integer', (self, value) => {
-  self.value = Math.trunc(value)
+  if (typeof value === 'function') {
+    Object.defineProperty(self, 'value', { get: value })
+  } else {
+    self.value = Math.trunc(value)
+  }
 }))
 const IconList = createCtor('list')
 const IconProcedure = createCtor('procedure')

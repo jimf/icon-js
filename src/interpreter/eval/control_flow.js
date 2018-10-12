@@ -29,17 +29,21 @@ class Return extends Error {
 
 module.exports = ({ env, evaluate }) => ({
   Procedure: (node, args) => {
-    env.pushCall(node)
+    const shouldInitialize = env.pushCall(node)
     node.parameters.forEach((param, idx) => {
       env.define(param.name, args[idx] ? args[idx] : new Type.IconNull())
     })
-    return node.body.reduce(
+    const initial = shouldInitialize
+      ? evaluate(node.initial)
+      : Promise.resolve(Success())
+    return initial.then(() => node.body.reduce(
       (acc, expr) => acc.then((r) => evaluate(expr)),
       Promise.resolve(Success(new Type.IconNull()))
-    ).then((res) => {
+    ).then(() => {
       env.popCall()
       return Failure()
     }).catch((err) => {
+      env.popCall()
       if (err instanceof Return) {
         return err.value
       } else if (err instanceof Fail) {
@@ -47,7 +51,7 @@ module.exports = ({ env, evaluate }) => ({
       } else {
         throw err
       }
-    })
+    }))
   },
   Call: (node, result) => {
     // Calls cascade. If the result of the previous call was a failure, don't even run.
