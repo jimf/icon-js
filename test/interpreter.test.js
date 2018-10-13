@@ -681,9 +681,61 @@ end
     it('should interpret subscripts', () => {
       return testExprs([
         { input: '"abcdef"[3]', expected: 'c' },
-        { input: '"abcdef"[0]', expected: 'f' },
-        { input: '"abcdef"[-1]', expected: 'e' }
+        { input: '"abcdef"[0]', expected: '' },
+        { input: '"abcdef"[-1]', expected: 'f' },
+        { input: '"toolkit"[2:4]', expected: 'oo' },
+        { input: '"toolkit"[-6:-4]', expected: 'oo' },
+        { input: '"toolkit"[5:0]', expected: 'kit' },
+        { input: '"toolkit"[0:5]', expected: 'kit' },
+        { input: '"toolkit"[5][1]', expected: 'k' },
+        { input: '"toolkit"[5,1]', expected: 'k' },
+        { input: '"toolkit"[4+:2]', expected: 'lk' },
+        { input: '"toolkit"[-3+:3]', expected: 'kit' },
+        { input: '"toolkit"[-5+:3]', expected: 'olk' },
+        { input: '"toolkit"[5-:4]', expected: 'tool' },
+        { input: '"toolkit"[0-:3]', expected: 'kit' },
+        { input: '"toolkit"[-2-:2]', expected: 'lk' }
       ])
+    })
+
+    test('subscript assignment', () => {
+      return testProgram(`
+procedure main()
+    s := "toolkit"
+    s[1] := "p"
+    s[5:0] := ""
+    s[-1] := "dle"
+    writes(s)
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('poodle')
+      })
+    })
+
+    test('null substring assignment', () => {
+      return testProgram(`
+procedure main()
+    s := "xy"
+    s[2:2] := "-"
+    writes(s)
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('x-y')
+      })
+    })
+
+    test('substring assignment value semantics', () => {
+      return testProgram(`
+procedure main()
+    s1 := "string 1"
+    s2 := "string 2"
+    s1 := s2
+    s1[1:3] := ""
+    writes(s2)
+end
+      `).then(({ stdout }) => {
+        expect(stdout).toBe('string 2')
+      })
     })
   })
 })

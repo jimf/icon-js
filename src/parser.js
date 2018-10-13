@@ -91,7 +91,7 @@ ${errorContext}
   }
 
   function call () {
-    const expr = primary()
+    let expr = primary()
     if (match('LParen')) {
       const args = []
       if (!check('RParen')) {
@@ -105,18 +105,48 @@ ${errorContext}
         callee: expr,
         arguments: args
       }
-    } else if (match('LBracket')) {
-      const subscripts = []
-      if (!check('RBracket')) {
-        do {
-          subscripts.push(expression())
-        } while (match('Comma'))
-      }
-      expect(match('RBracket'), 'closing "]" after subscript(s)')
-      return {
-        type: 'Subscript',
-        callee: expr,
-        subscripts
+    } else if (check('LBracket')) {
+      while (match('LBracket')) {
+        const start = unary()
+        let sign = match('Plus') || match('Minus')
+        if (sign) { sign = previous() }
+        let end = null
+        if (sign) {
+          expect(match('Colon'), '":"')
+          end = unary()
+        } else if (match('Colon')) {
+          end = unary()
+        }
+        let endNode = null
+        if (sign) {
+          endNode = {
+            type: 'Relative',
+            sign,
+            value: end
+          }
+        } else if (end) {
+          endNode = {
+            type: 'Absolute',
+            value: end
+          }
+        }
+        expr = {
+          type: 'Subscript',
+          callee: expr,
+          start,
+          end: endNode
+        }
+        if (end === null && match('Comma')) {
+          do {
+            expr = {
+              type: 'Subscript',
+              callee: expr,
+              start: unary(),
+              end: null
+            }
+          } while (match('Comma'))
+        }
+        expect(match('RBracket'), 'closing "]" after subscript(s)')
       }
     }
     return expr

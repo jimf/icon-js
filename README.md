@@ -6,11 +6,22 @@ Interpreter for the [Icon][] programming langauge.
 
 ## Todo
 
+30,000 foot view:
+
 - [x] Lexer
 - [ ] Parser
 - [ ] Interpreter
 - [ ] Command-line interface
 - [ ] REPL (maybe? low priority)
+
+More granular remaining items:
+
+- Automatic semicolon insertion
+- All or most keywords
+- All or most functions
+- All operators
+- Trace functionality
+- Generators
 
 ## Usage
 

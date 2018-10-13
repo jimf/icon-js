@@ -21,17 +21,29 @@ const evalSubscript = ({ env, evaluate }) => ({
   Subscript: (node, result) => {
     // Evaluate the subscripts in series, waterfalling the results.
     return evaluate(node.callee).then((calleeRes) => {
-      return evalNodeArray(evaluate, node.subscripts).then((subsResult) => {
+      const subscripts = [node.start]
+      if (node.end) { subscripts.push(node.end.value) }
+      return evalNodeArray(evaluate, subscripts).then((subsResult) => {
         // If the result of any of the args is a failure, don't run.
         if (calleeRes.isFailure) { return calleeRes }
         if (subsResult.isFailure) { return subsResult }
 
+        // TODO: handle other data types
         const strRes = Type.toString(calleeRes.value)
         if (strRes.isFailure) { return strRes }
         const subsResultInts = Type.tryCoerceAll(subsResult.value, Type.toInteger)
         if (subsResultInts.isFailure) { return subsResultInts }
         const args = subsResultInts.value.map(intT => intT.value)
-        return strRes.value.subscript(...args)
+        let [start, end, value] = args
+        let relative = false
+        console.log(node.end);
+        if (node.end && node.end.sign) {
+          relative = true
+          if (node.end.sign.type === 'Minus') {
+            end = -end
+          }
+        }
+        return strRes.value.subscript(start, end, relative, value)
       })
     })
   }
@@ -78,14 +90,28 @@ const evalBinaryOp = ({ env, evaluate }) => ({
           case 'ColonEq':
             if (node.left.type === 'Identifier') {
               // x := _
-              env.define(node.left.name, rres.value)
+              env.define(node.left.name, rres.value.map(x => x))
               return rres
-            } else if (node.left.type === 'Subscript' && node.left.subscripts.length === 1) {
+            } else if (node.left.type === 'Subscript') {
               // x[y] = _
+              // x[y:z] = _
               const str = env.lookup(node.left.callee.name)
-              const pos = node.left.subscripts[0].value
-              str.update(pos, rres.value.value)
-              return Success(str)
+              const range = [node.left.start]
+              if (node.left.end !== null) { range.push(node.left.end.value) }
+              return evalNodeArray(evaluate, range).then((rangeRes) => {
+                if (rangeRes.isFailure) { return rangeRes }
+                const start = rangeRes.value[0].value
+                let end = rangeRes.value[1] && rangeRes.value[1].value
+                let relative = false
+                if (node.left.end && node.left.end.sign) {
+                  relative = true
+                  if (node.left.end.sign.type === 'Minus') {
+                    end = -end
+                  }
+                }
+                str.subscript(start, end, relative, rres.value.value)
+                return Success(str)
+              })
             } else if (node.left.type === 'UnaryOp' && node.left.operator.type === 'Slash') {
               // /x := _
               const current = env.lookup(node.left.right.name)
